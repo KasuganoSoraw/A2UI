@@ -25,7 +25,7 @@ interface DiagramSpec {
 }
 
 interface FlowDiagramNodeProps {
-  spec?: {path?: string};
+  spec?: string | {path?: string; literalString?: string};
 }
 
 function parseSpec(raw: string | null): DiagramSpec | null {
@@ -45,7 +45,11 @@ export const FlowDiagram = memo(function FlowDiagram({
 }: A2UIComponentProps<any>) {
   const {getValue} = useA2UIComponent(node, surfaceId);
   const props = node.properties as FlowDiagramNodeProps;
-  const spec = parseSpec(props.spec?.path ? String(getValue(props.spec.path) ?? '') : null);
+  const specSource =
+    typeof props.spec === 'string'
+      ? props.spec
+      : props.spec?.literalString ?? (props.spec?.path ? String(getValue(props.spec.path) ?? '') : null);
+  const spec = parseSpec(specSource);
 
   const layout = useMemo(() => {
     if (!spec) return null;
@@ -139,4 +143,3 @@ export const FlowDiagram = memo(function FlowDiagram({
       </div>
   );
 });
-

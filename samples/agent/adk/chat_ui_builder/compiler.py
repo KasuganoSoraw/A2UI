@@ -41,6 +41,7 @@ class FrameCompiler:
     self.used_ids: set[str] = set()
     self.aliases: dict[str, str] = {}
     self.auto_sections: dict[str, str] = {}
+    self.page_parent_id = self.root_id
 
   def apply(self, delta: Any) -> list[A2UIFrame]:
     logger.info('Compiling delta type=%s payload=%s', type(delta).__name__, delta.model_dump())
@@ -119,7 +120,7 @@ class FrameCompiler:
         AddSectionDelta(
             event='add_section',
             id=section_id,
-            parent_id=self.root_id,
+            parent_id=self.page_parent_id,
             layout='Card',
             title=title,
         )
@@ -180,16 +181,29 @@ class FrameCompiler:
         self.root_id: ContainerState(component_id=self.root_id, container_type='Column')
     }
 
+    frame_card_id = self._register_id('surface_frame_card')
+    frame_content_id = self._helper_id(frame_card_id, 'content')
     intro_card_id = self._register_id('surface_intro_card')
     intro_content_id = self._helper_id(intro_card_id, 'content')
     title_id = self._helper_id(intro_card_id, 'title')
-    root_children = [intro_card_id]
+    root_children = [frame_card_id]
     components = [
         ComponentNode(
             id=self.root_id,
             component={
                 'Column': {
                     'children': {'explicitList': root_children},
+                    'alignment': 'stretch',
+                    'distribution': 'start',
+                }
+            },
+        ),
+        ComponentNode(id=frame_card_id, component={'Card': {'child': frame_content_id}}),
+        ComponentNode(
+            id=frame_content_id,
+            component={
+                'Column': {
+                    'children': {'explicitList': [intro_card_id]},
                     'alignment': 'stretch',
                     'distribution': 'start',
                 }
@@ -215,7 +229,7 @@ class FrameCompiler:
       components.append(
           ComponentNode(id=summary_id, component={'Text': {'text': {'path': '/summary'}, 'usageHint': 'body'}})
       )
-      components[2] = ComponentNode(
+      components[4] = ComponentNode(
           id=intro_content_id,
           component={
               'Column': {
@@ -228,9 +242,12 @@ class FrameCompiler:
       data_entries.append(DataMapEntry(key='summary', valueString=delta.summary))
 
     self.containers[self.root_id].child_ids = root_children
+    self.containers[frame_card_id] = ContainerState(component_id=frame_content_id, container_type='Column')
+    self.containers[frame_card_id].child_ids = [intro_card_id]
     self.containers[intro_card_id] = ContainerState(component_id=intro_content_id, container_type='Column')
     self.containers[intro_card_id].child_ids = [title_id] + ([summary_id] if delta.summary else [])
     self.auto_sections = {}
+    self.page_parent_id = frame_card_id
 
     begin = A2UIFrame(
         beginRendering={
@@ -243,7 +260,8 @@ class FrameCompiler:
     return [begin, self._surface_update(components), self._data_update('/', data_entries)]
 
   def _add_section(self, delta: AddSectionDelta) -> list[A2UIFrame]:
-    parent = self._ensure_container(delta.parent_id)
+    actual_parent_id = self.page_parent_id if delta.parent_id == self.root_id else delta.parent_id
+    parent = self._ensure_container(actual_parent_id)
     section_id = self._register_id(delta.id)
     if section_id == parent.component_id:
       raise ValueError(f'Section id {section_id} cannot equal parent id {parent.component_id}')
@@ -253,7 +271,7 @@ class FrameCompiler:
 
     if delta.layout == 'Card':
       content_id = self._helper_id(section_id, 'content')
-      self._append_child(delta.parent_id, section_id)
+      self._append_child(actual_parent_id, section_id)
       self.containers[section_id] = ContainerState(component_id=content_id, container_type='Column')
       components.append(ComponentNode(id=section_id, component={'Card': {'child': content_id}}))
       explicit_children: list[str] = []
@@ -292,7 +310,7 @@ class FrameCompiler:
           )
       )
     else:
-      self._append_child(delta.parent_id, section_id)
+      self._append_child(actual_parent_id, section_id)
       self.containers[section_id] = ContainerState(component_id=section_id, container_type=delta.layout)
       explicit_children: list[str] = []
       if delta.title:
