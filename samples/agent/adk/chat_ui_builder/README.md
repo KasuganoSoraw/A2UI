@@ -1,13 +1,13 @@
 # Chat UI Builder Demo
 
 这个 demo 会把自然语言需求转换成增量 A2UI 数据帧。
-它通过 LiteLLM 调用本地 OpenAI-compatible 模型，让模型输出 **NDJSON deltas**（每行一个 JSON 对象），
-然后用 Pydantic 校验这些 delta，再编译成严格的 A2UI v0.8 数据帧并流式返回给前端。
+它通过 LiteLLM 调用本地 OpenAI-compatible 模型，让模型输出 **NDJSON skeleton deltas**（每行一个 JSON 对象），
+后端先把这些语义化骨架指令映射成页面布局中间层，再编译成严格的 A2UI v0.8 数据帧并流式返回给前端。
 
 ## 为什么需要这个 demo
 
 和固定领域模板示例不同，这个 demo 不把模型锁死在单一业务域里。
-模型会从一组受控的 A2UI 组件中规划页面结构，再由后端安全地转换成 A2UI 帧。
+模型会先输出页面意图、region 骨架与区域内容，再由后端布局策略安全地转换成 A2UI 帧。
 
 ## 本地模型配置
 
@@ -29,7 +29,8 @@ export MAX_LOG_CHARS="1200"
 后端会记录：
 - LLM 调用端点、模型名、温度
 - 发送给 LLM 的消息
-- LLM 的流式 chunk / NDJSON 行
+- LLM 的流式 chunk / NDJSON skeleton 行
+- skeleton 到 A2UI 骨架帧的映射结果
 - 编译后的 A2UI 数据帧
 
 ## 启动后端
@@ -54,6 +55,17 @@ uv run .
 返回：
 - `application/x-ndjson`
 - 每一行都是一个合法的 A2UI envelope（`beginRendering`、`surfaceUpdate`、`dataModelUpdate` 或 `deleteSurface`）
+
+## 中间层说明
+
+当前版本不再要求模型直接输出底层 `add_section / add_text / add_button` 组合，
+而是先输出：
+
+- `init_plan`：页面级意图（page kind / emphasis / layout hint）
+- `add_region`：页面骨架区域
+- `add_region_*`：挂在 region 上的内容、动作、表单、列表、流程图
+
+后端会维护一个骨架中间层，根据页面意图选择布局策略，并将 region 自动映射到合适的 Card / Row / Column / List 结构。
 
 ## 前端 demo
 

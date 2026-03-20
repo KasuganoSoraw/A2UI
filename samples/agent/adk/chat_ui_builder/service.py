@@ -9,8 +9,9 @@ from litellm import acompletion
 from pydantic import ValidationError
 
 from compiler import FrameCompiler
-from models import A2UIFrame, DELTA_ADAPTER, FinalizeDelta
+from models import A2UIFrame, DELTA_ADAPTER, FinalizeDelta, SKELETON_DELTA_ADAPTER
 from prompting import build_messages
+from skeleton_compiler import SkeletonCompiler
 from settings import settings
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,7 @@ class ChatUIService:
       self, user_message: str, request_id: str = 'unknown'
   ) -> AsyncIterator[A2UIFrame]:
     compiler = FrameCompiler()
+    skeleton_compiler = SkeletonCompiler()
     buffer = ''
     messages = build_messages(user_message)
 
@@ -62,7 +64,13 @@ class ChatUIService:
           continue
         logger.info('[%s] Raw NDJSON line=%s', request_id, _truncate(line))
         try:
-          parsed = DELTA_ADAPTER.validate_python(json.loads(line))
+          payload = json.loads(line)
+          try:
+            parsed = SKELETON_DELTA_ADAPTER.validate_python(payload)
+            active_compiler = skeleton_compiler
+          except (ValidationError, ValueError):
+            parsed = DELTA_ADAPTER.validate_python(payload)
+            active_compiler = compiler
         except (json.JSONDecodeError, ValidationError, ValueError) as exc:
           logger.warning(
               '[%s] Failed to parse/validate delta line=%s error=%s',
@@ -76,7 +84,7 @@ class ChatUIService:
           continue
         logger.info('[%s] Parsed delta=%s', request_id, _truncate(parsed.model_dump()))
         try:
-          for frame in compiler.apply(parsed):
+          for frame in active_compiler.apply(parsed):
             logger.info(
                 '[%s] Emitting A2UI frame=%s',
                 request_id,
@@ -95,7 +103,13 @@ class ChatUIService:
     if final_line and not final_line.startswith('```'):
       logger.info('[%s] Final buffered line=%s', request_id, _truncate(final_line))
       try:
-        parsed = DELTA_ADAPTER.validate_python(json.loads(final_line))
+        payload = json.loads(final_line)
+        try:
+          parsed = SKELETON_DELTA_ADAPTER.validate_python(payload)
+          active_compiler = skeleton_compiler
+        except (ValidationError, ValueError):
+          parsed = DELTA_ADAPTER.validate_python(payload)
+          active_compiler = compiler
       except (json.JSONDecodeError, ValidationError, ValueError) as exc:
         logger.warning(
             '[%s] Failed to parse final delta line=%s error=%s',
@@ -109,7 +123,7 @@ class ChatUIService:
         return
       logger.info('[%s] Parsed final delta=%s', request_id, _truncate(parsed.model_dump()))
       try:
-        for frame in compiler.apply(parsed):
+        for frame in active_compiler.apply(parsed):
           logger.info(
               '[%s] Emitting final A2UI frame=%s',
               request_id,

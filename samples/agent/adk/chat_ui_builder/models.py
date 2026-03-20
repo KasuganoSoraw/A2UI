@@ -10,6 +10,89 @@ class Theme(BaseModel):
   font: str | None = None
 
 
+class InitPlanDelta(BaseModel):
+  event: Literal["init_plan"]
+  surface_id: str = "main"
+  title: str
+  summary: str | None = None
+  page_kind: Literal["overview", "dashboard", "approval_workflow", "form", "detail", "workflow"] = "overview"
+  emphasis: Literal["balanced", "action-first", "analytics-first", "content-first"] = "balanced"
+  layout_hint: Literal["auto", "single_column", "two_column", "hero_plus_two_column", "hero_plus_action_panel"] = "auto"
+  theme: Theme | None = None
+
+
+class AddRegionDelta(BaseModel):
+  event: Literal["add_region"]
+  id: str
+  role: Literal["hero", "summary", "details", "workflow", "actions", "form", "list", "insights", "supporting"]
+  title: str | None = None
+  description: str | None = None
+  importance: Literal["high", "medium", "low"] = "medium"
+
+
+class AddRegionTextDelta(BaseModel):
+  event: Literal["add_region_text"]
+  id: str
+  region_id: str
+  text: str
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption"] = "body"
+
+
+class AddRegionFactDelta(BaseModel):
+  event: Literal["add_region_fact"]
+  id: str
+  region_id: str
+  label: str
+  value: str
+
+
+class AddRegionImageDelta(BaseModel):
+  event: Literal["add_region_image"]
+  id: str
+  region_id: str
+  url: str
+  usage_hint: Literal["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"] | None = None
+
+
+class AddRegionActionDelta(BaseModel):
+  event: Literal["add_region_action"]
+  id: str
+  region_id: str
+  label: str
+  action_name: str
+  primary: bool = False
+
+
+class AddRegionInputDelta(BaseModel):
+  event: Literal["add_region_input"]
+  id: str
+  region_id: str
+  component: Literal["TextField", "CheckBox", "Slider", "MultipleChoice", "DateTimeInput"]
+  label: str
+  path: str
+  value: str | bool | float | int | list[str] | None = None
+  text_field_type: Literal["shortText", "longText", "number", "date", "obscured"] | None = None
+  min_value: float | None = None
+  max_value: float | None = None
+  options: list["ChoiceOption"] | None = None
+  enable_date: bool | None = None
+  enable_time: bool | None = None
+
+
+class AddRegionDividerDelta(BaseModel):
+  event: Literal["add_region_divider"]
+  id: str
+  region_id: str
+
+
+class AppendRegionListItemDelta(BaseModel):
+  event: Literal["append_region_list_item"]
+  id: str
+  region_id: str
+  title: str
+  detail: str | None = None
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -88,6 +171,9 @@ class ChoiceOption(BaseModel):
   value: str
 
 
+AddRegionInputDelta.model_rebuild()
+
+
 class AddInputDelta(BaseModel):
   event: Literal["add_input"]
   id: str
@@ -110,6 +196,15 @@ class AddDividerDelta(BaseModel):
   parent_id: str
 
 
+class AddRegionFlowDiagramDelta(BaseModel):
+  event: Literal["add_region_flow_diagram"]
+  id: str
+  region_id: str
+  title: str
+  nodes: list[FlowDiagramNode]
+  edges: list[FlowDiagramEdge]
+
+
 class AppendListItemDelta(BaseModel):
   event: Literal["append_list_item"]
   id: str
@@ -120,6 +215,24 @@ class AppendListItemDelta(BaseModel):
 
 class FinalizeDelta(BaseModel):
   event: Literal["finalize"]
+
+
+SkeletonDelta = Annotated[
+    InitPlanDelta
+    | AddRegionDelta
+    | AddRegionTextDelta
+    | AddRegionFactDelta
+    | AddRegionImageDelta
+    | AddRegionActionDelta
+    | AddRegionInputDelta
+    | AddRegionDividerDelta
+    | AppendRegionListItemDelta
+    | AddRegionFlowDiagramDelta
+    | FinalizeDelta,
+    Field(discriminator="event"),
+]
+
+SKELETON_DELTA_ADAPTER = TypeAdapter(SkeletonDelta)
 
 
 Delta = Annotated[
