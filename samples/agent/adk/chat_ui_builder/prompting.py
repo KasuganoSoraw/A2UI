@@ -74,7 +74,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面意图规划器。
 ## 规则
 1. 只输出一个合法 JSON 对象。
 2. title 必须存在。
-3. sections 至少 1 个，通常 2 到 5 个。
+3. sections 至少 1 个，通常 2 到 5 个，并且应尽早先输出页面级字段与 sections 框架，再继续补全 section 内容。
 4. 如果用户有明显操作意图，必须给出 primary_action 或 actions section。
 5. 如果用户描述流程、审批、分支、步骤，必须给出 workflow section，并尽量提供 flow。
 6. 如果用户描述表单、编辑、填写、预约，必须给出 form section，并提供 inputs。
