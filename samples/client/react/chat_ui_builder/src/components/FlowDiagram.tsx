@@ -151,7 +151,7 @@ export const FlowDiagram = memo(function FlowDiagram({
           <h3>{spec.title}</h3>
         </div>
         <div ref={canvasRef} className="flow-diagram__canvas">
-          <div className="flow-diagram__stage" style={{width: layout.width, minHeight: layout.height}}>
+          <div className="flow-diagram__stage" style={{width: layout.width, height: layout.height}}>
             <svg
                 className="flow-diagram__edges"
                 viewBox={`0 0 ${layout.width} ${layout.height}`}
@@ -175,7 +175,6 @@ export const FlowDiagram = memo(function FlowDiagram({
                 const to = layout.positions.get(edge.to_id);
                 if (!from || !to) return null;
                 const midX = (from.x + to.x) / 2;
-                const labelWidth = Math.max(42, (edge.label?.length ?? 0) * 16);
                 const path = `M ${from.x} ${from.y} C ${midX} ${from.y}, ${midX} ${to.y}, ${to.x} ${to.y}`;
                 return (
                     <g key={`${edge.from_id}-${edge.to_id}-${edge.label ?? ''}`}>
@@ -184,25 +183,30 @@ export const FlowDiagram = memo(function FlowDiagram({
                           className="flow-diagram__edge-path"
                           markerEnd={`url(#flow-diagram-arrow-${node.id})`}
                       />
-                      {edge.label ? (
-                          <g transform={`translate(${midX}, ${(from.y + to.y) / 2 - 12})`}>
-                            <rect
-                                className="flow-diagram__edge-label-bg"
-                                x={-labelWidth / 2}
-                                y={-14}
-                                rx="999"
-                                width={labelWidth}
-                                height="28"
-                            />
-                            <text x="0" y="5" className="flow-diagram__edge-label">
-                              {edge.label}
-                            </text>
-                          </g>
-                      ) : null}
                     </g>
                 );
               })}
             </svg>
+
+            {spec.edges.map((edge) => {
+              if (!edge.label) return null;
+              const from = layout.positions.get(edge.from_id);
+              const to = layout.positions.get(edge.to_id);
+              if (!from || !to) return null;
+              return (
+                  <div
+                      key={`label-${edge.from_id}-${edge.to_id}-${edge.label}`}
+                      className="flow-diagram__edge-label-chip"
+                      style={{
+                        left: (from.x + to.x) / 2,
+                        top: (from.y + to.y) / 2 - 12,
+                        minWidth: Math.max(42, edge.label.length * 16),
+                      }}
+                  >
+                    {edge.label}
+                  </div>
+              );
+            })}
 
             {spec.nodes.map((item) => (
                 <div
