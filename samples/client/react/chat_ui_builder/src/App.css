@@ -456,7 +456,10 @@ button:disabled {
 .flow-diagram__edges {
   position: absolute;
   inset: 0;
+  display: block;
   overflow: visible;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .flow-diagram__edge-path {
@@ -467,16 +470,20 @@ button:disabled {
   stroke-linejoin: round;
 }
 
-.flow-diagram__edge-label-bg {
-  fill: #ffffff;
-  stroke: #dcdfe6;
-}
-
-.flow-diagram__edge-label {
-  fill: #606266;
+.flow-diagram__edge-label-chip {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #dcdfe6;
+  background: #ffffff;
+  color: #606266;
   font-size: 12px;
-  text-anchor: middle;
   font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  z-index: 2;
 }
 
 .flow-diagram__node {
@@ -490,6 +497,7 @@ button:disabled {
   flex-direction: column;
   gap: 8px;
   justify-content: center;
+  z-index: 3;
 }
 
 .flow-diagram__node strong {
