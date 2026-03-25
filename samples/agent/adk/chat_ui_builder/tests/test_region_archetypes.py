@@ -59,25 +59,7 @@ def test_summary_region_uses_explicit_header_and_body_slots() -> None:
   assert '/content/summary_region_header_description' in data_paths
 
 
-def test_dashboard_summary_uses_card_grid_width_behavior() -> None:
-  compiler = SkeletonCompiler()
-  compiler.apply(
-      InitPlanDelta(
-          event='init_plan',
-          title='Dashboard',
-          page_kind='dashboard',
-          emphasis='analytics-first',
-          layout_hint='hero_plus_two_column',
-      )
-  )
-  frames = compiler.apply(AddRegionDelta(event='add_region', id='kpi_region', role='summary', title='KPI'))
-  component_ids = _slot_component_ids(frames)
-
-  assert compiler.role_width['summary'] == 'card_grid_item'
-  assert 'kpi_region' in component_ids
-
-
-def test_actions_region_in_narrow_side_uses_primary_plus_overflow_slots() -> None:
+def test_actions_region_has_stable_primary_and_secondary_slots() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(
       InitPlanDelta(
@@ -92,34 +74,33 @@ def test_actions_region_in_narrow_side_uses_primary_plus_overflow_slots() -> Non
   binding = compiler.regions['actions_region']
   component_ids = _slot_component_ids(frames)
 
-  assert compiler.side_behavior == 'narrow'
   assert binding.parent_for('action_primary') == 'actions_region_actions_primary'
   assert binding.parent_for('action_secondary') == 'actions_region_actions_secondary'
   assert 'actions_region_actions_primary' in component_ids
   assert 'actions_region_actions_secondary' in component_ids
 
 
-def test_form_action_first_routes_actions_to_footer_bucket() -> None:
+def test_layout_scaffold_keeps_bucket_order_with_split_layout() -> None:
   compiler = SkeletonCompiler()
-  compiler.apply(
+  frames = compiler.apply(
       InitPlanDelta(
           event='init_plan',
-          title='Form',
-          page_kind='form',
-          emphasis='action-first',
-          layout_hint='hero_plus_action_panel',
+          title='Dashboard',
+          page_kind='dashboard',
+          emphasis='analytics-first',
+          layout_hint='hero_plus_two_column',
       )
   )
-
-  assert compiler.role_slots['actions'] == 'actions_footer_bucket'
-
-  frames = compiler.apply(AddRegionDelta(event='add_region', id='actions_form', role='actions', title='Submit'))
   component_ids = _slot_component_ids(frames)
-  assert 'actions_footer_bucket' in component_ids
-  assert 'actions_form_actions' in component_ids
+
+  assert 'layout_split_row' in component_ids
+  assert 'layout_main_content' in component_ids
+  assert 'layout_side_rail' in component_ids
+  assert 'hero_bucket' in component_ids
+  assert 'actions_bucket' in component_ids
 
 
-def test_pending_region_deltas_flush_through_compact_slot_mapping() -> None:
+def test_pending_region_deltas_flush_through_structural_slot_mapping() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Detail page'))
 
