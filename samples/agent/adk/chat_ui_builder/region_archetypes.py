@@ -1,11 +1,21 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Literal
 
 from models import A2UIFrame, AddRegionDelta, AddSectionDelta, AddTextDelta
 
 EmitLowLevel = Callable[[object], list[A2UIFrame]]
+BodyArrangement = Literal['stacked', 'inline', 'compact_group']
+ActionArrangement = Literal['action_row', 'action_stack', 'footer_actions']
+FactArrangement = Literal['fact_row', 'fact_grid', 'fact_stack']
+
+
+@dataclass(frozen=True)
+class ArrangementSemantics:
+  body: BodyArrangement = 'stacked'
+  actions: ActionArrangement = 'action_row'
+  facts: FactArrangement = 'fact_row'
 
 
 @dataclass
@@ -15,6 +25,7 @@ class RegionBuildContext:
   page_kind: str
   emphasis: str
   layout_hint: str
+  arrangement: ArrangementSemantics
 
 
 @dataclass
@@ -43,7 +54,7 @@ class RegionArchetypeBuilder:
       context: RegionBuildContext,
       emit: EmitLowLevel,
       *,
-      layout: str = 'Column',
+      region_layout: str = 'Column',
       include_body_slot: bool = True,
       slot_specs: list[SlotSpec] | None = None,
       slot_parents: dict[str, str] | None = None,
@@ -54,7 +65,7 @@ class RegionArchetypeBuilder:
             event='add_section',
             id=region_id,
             parent_id=context.slot_parent,
-            layout=layout,
+            layout=region_layout,
         )
     )
 
@@ -109,6 +120,7 @@ class RegionArchetypeBuilder:
             )
         )
       if include_body_slot:
+        body_layout = 'Column' if context.arrangement.body == 'stacked' else 'Row'
         body_id = f'{region_id}_body'
         frames.extend(
             emit(
@@ -116,26 +128,12 @@ class RegionArchetypeBuilder:
                     event='add_section',
                     id=body_id,
                     parent_id=region_id,
-                    layout='Column',
+                    layout=body_layout,
                     order=20,
                 )
             )
         )
         content_parent = body_id
-    elif include_body_slot and slot_specs:
-      body_id = f'{region_id}_body'
-      frames.extend(
-          emit(
-              AddSectionDelta(
-                  event='add_section',
-                  id=body_id,
-                  parent_id=region_id,
-                  layout='Column',
-                  order=20,
-              )
-          )
-      )
-      content_parent = body_id
 
     resolved_slot_parents['text'] = content_parent
     resolved_slot_parents['image'] = content_parent
@@ -160,19 +158,26 @@ class RegionArchetypeBuilder:
 
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=resolved_slot_parents)
 
+  def _facts_layout(self, context: RegionBuildContext) -> str:
+    return 'Row' if context.arrangement.facts in {'fact_row', 'fact_grid'} else 'Column'
+
+  def _actions_layout(self, context: RegionBuildContext) -> str:
+    return 'Column' if context.arrangement.actions == 'action_stack' else 'Row'
+
 
 class HeroArchetypeBuilder(RegionArchetypeBuilder):
   archetype_name = 'hero_header'
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
-    actions_id = f'{region_id}_hero_actions'
+    actions_id = f'{region_id}_{context.arrangement.actions}'
     return self._base_region(
         context,
         emit,
+        include_body_slot=context.arrangement.body != 'compact_group',
         slot_specs=[
-            SlotSpec(name='fact', section_id=f'{region_id}_hero_facts', layout='Column', order=30),
-            SlotSpec(name='action_primary', section_id=actions_id, layout='Column', order=40),
+            SlotSpec(name='fact', section_id=f'{region_id}_{context.arrangement.facts}', layout=self._facts_layout(context), order=30),
+            SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},
     )
@@ -183,10 +188,17 @@ class SummaryArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    facts_id = f'{region_id}_{context.arrangement.facts}'
     return self._base_region(
         context,
         emit,
-        slot_specs=[SlotSpec(name='fact', section_id=f'{region_id}_summary_facts', layout='Column', order=30)],
+        include_body_slot=False,
+        slot_specs=[SlotSpec(name='fact', section_id=facts_id, layout=self._facts_layout(context), order=20)],
+        slot_parents={
+            'text': facts_id,
+            'image': facts_id,
+            'divider': facts_id,
+        },
     )
 
 
@@ -195,13 +207,14 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
-    actions_id = f'{region_id}_details_actions'
+    actions_id = f'{region_id}_{context.arrangement.actions}'
     return self._base_region(
         context,
         emit,
+        include_body_slot=True,
         slot_specs=[
-            SlotSpec(name='fact', section_id=f'{region_id}_details_facts', layout='Column', order=30),
-            SlotSpec(name='action_primary', section_id=actions_id, layout='Column', order=40),
+            SlotSpec(name='fact', section_id=f'{region_id}_{context.arrangement.facts}', layout=self._facts_layout(context), order=30),
+            SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},
     )
@@ -212,12 +225,24 @@ class ActionsArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    actions_layout = self._actions_layout(context)
+    if context.arrangement.actions == 'action_row':
+      actions_id = f'{region_id}_action_row'
+      return self._base_region(
+          context,
+          emit,
+          include_body_slot=False,
+          slot_specs=[SlotSpec(name='action_primary', section_id=actions_id, layout=actions_layout, order=30)],
+          slot_parents={'action_secondary': actions_id},
+      )
+
     return self._base_region(
         context,
         emit,
+        include_body_slot=False,
         slot_specs=[
-            SlotSpec(name='action_primary', section_id=f'{region_id}_actions_primary', layout='Column', order=30),
-            SlotSpec(name='action_secondary', section_id=f'{region_id}_actions_secondary', layout='Column', order=40),
+            SlotSpec(name='action_primary', section_id=f'{region_id}_action_primary', layout=actions_layout, order=30),
+            SlotSpec(name='action_secondary', section_id=f'{region_id}_action_secondary', layout=actions_layout, order=40),
         ],
     )
 
@@ -227,13 +252,14 @@ class WorkflowArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
-    actions_id = f'{region_id}_workflow_actions'
+    actions_id = f'{region_id}_{context.arrangement.actions}'
     return self._base_region(
         context,
         emit,
+        include_body_slot=True,
         slot_specs=[
-            SlotSpec(name='flow', section_id=f'{region_id}_workflow_flow', layout='Column', order=30),
-            SlotSpec(name='action_primary', section_id=actions_id, layout='Column', order=40),
+            SlotSpec(name='flow', section_id=f'{region_id}_flow', layout='Column', order=30),
+            SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},
     )
@@ -243,9 +269,20 @@ class SupportingArchetypeBuilder(RegionArchetypeBuilder):
   archetype_name = 'supporting_block'
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
+    region_id = context.delta.id
+    compact_id = f'{region_id}_compact_meta'
     return self._base_region(
         context,
         emit,
+        include_body_slot=False,
+        slot_specs=[
+            SlotSpec(name='text', section_id=compact_id, layout='Row', order=20),
+        ],
+        slot_parents={
+            'fact': compact_id,
+            'image': compact_id,
+            'divider': compact_id,
+        },
     )
 
 
@@ -254,10 +291,16 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    actions_id = f'{region_id}_{context.arrangement.actions}'
     return self._base_region(
         context,
         emit,
-        slot_specs=[SlotSpec(name='list_item', section_id=f'{region_id}_list_items', layout='List', order=30)],
+        include_body_slot=False,
+        slot_specs=[
+            SlotSpec(name='list_item', section_id=f'{region_id}_list_items', layout='List', order=30),
+            SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
+        ],
+        slot_parents={'action_secondary': actions_id},
     )
 
 
@@ -266,13 +309,14 @@ class FormArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
-    actions_id = f'{region_id}_form_actions'
+    actions_id = f'{region_id}_{context.arrangement.actions}'
     return self._base_region(
         context,
         emit,
+        include_body_slot=True,
         slot_specs=[
-            SlotSpec(name='input', section_id=f'{region_id}_form_inputs', layout='Column', order=30),
-            SlotSpec(name='action_primary', section_id=actions_id, layout='Column', order=40),
+            SlotSpec(name='input', section_id=f'{region_id}_inputs', layout='Column', order=30),
+            SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},
     )

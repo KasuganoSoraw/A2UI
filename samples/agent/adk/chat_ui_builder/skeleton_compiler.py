@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Callable
+from typing import Callable, Literal
 
 from compiler import FrameCompiler
 from models import (
@@ -29,7 +29,7 @@ from models import (
     InitPlanDelta,
     InitSurfaceDelta,
 )
-from region_archetypes import RegionArchetypeRegistry, RegionBuildContext
+from region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +42,11 @@ BUCKET_ORDER = {
     'list_bucket': 60,
     'supporting_bucket': 70,
     'actions_bucket': 80,
+    'actions_footer_bucket': 85,
     'layout_split_row': 90,
 }
+
+BucketContext = Literal['main', 'side', 'footer']
 
 
 @dataclass
@@ -72,6 +75,7 @@ class LayoutRecipe:
   side_parent: str
   footer_parent: str
   role_slots: dict[str, str]
+  bucket_context: dict[str, BucketContext]
 
 
 class SkeletonCompiler:
@@ -83,6 +87,7 @@ class SkeletonCompiler:
     self.page_kind = 'overview'
     self.emphasis = 'balanced'
     self.role_slots: dict[str, str] = {}
+    self.bucket_context: dict[str, BucketContext] = {}
     self.regions: dict[str, RegionBinding] = {}
     self.pending_region_deltas: dict[str, list[PendingRegionDelta]] = {}
 
@@ -222,6 +227,7 @@ class SkeletonCompiler:
     self.page_kind = delta.page_kind
     self.emphasis = delta.emphasis
     self.role_slots = {}
+    self.bucket_context = {}
     self.regions = {}
     self.pending_region_deltas = {}
 
@@ -275,10 +281,12 @@ class SkeletonCompiler:
 
     frames.extend(self._build_role_buckets(recipe))
     self.role_slots = recipe.role_slots
+    self.bucket_context = recipe.bucket_context
     logger.info(
-        'Initialized layout scaffold=%s role_slots=%s',
+        'Initialized layout scaffold=%s role_slots=%s bucket_context=%s',
         self.layout_hint,
         self.role_slots,
+        self.bucket_context,
     )
     return frames
 
@@ -297,16 +305,33 @@ class SkeletonCompiler:
         'supporting': 'supporting_bucket',
         'actions': 'actions_bucket',
     }
+    bucket_context: dict[str, BucketContext] = {
+        'hero_bucket': 'main',
+        'summary_bucket': 'main',
+        'details_bucket': 'main',
+        'workflow_bucket': 'main',
+        'form_bucket': 'main',
+        'list_bucket': 'main',
+        'supporting_bucket': 'main',
+        'actions_bucket': 'main',
+    }
+
     root_parent = 'root'
     main_parent = 'root'
     side_parent = 'root'
-    footer_parent = main_parent
+    footer_parent = 'root'
 
     if self.layout_hint != 'single_column':
       main_parent = 'layout_main_content'
       side_parent = 'layout_side_rail'
       footer_parent = 'layout_main_footer'
       root_parent = 'root' if self.layout_hint.startswith('hero_plus') else main_parent
+      bucket_context['supporting_bucket'] = 'side'
+      bucket_context['actions_bucket'] = 'side'
+
+    if self.page_kind == 'form' and self.emphasis == 'action-first':
+      role_slots['actions'] = 'actions_footer_bucket'
+      bucket_context['actions_footer_bucket'] = 'footer'
 
     return LayoutRecipe(
         root_parent=root_parent,
@@ -314,6 +339,7 @@ class SkeletonCompiler:
         side_parent=side_parent,
         footer_parent=footer_parent,
         role_slots=role_slots,
+        bucket_context=bucket_context,
     )
 
   def _build_role_buckets(self, recipe: LayoutRecipe) -> list[A2UIFrame]:
@@ -327,6 +353,9 @@ class SkeletonCompiler:
         'supporting_bucket': recipe.side_parent,
         'actions_bucket': recipe.side_parent,
     }
+    if recipe.role_slots.get('actions') == 'actions_footer_bucket':
+      bucket_parents['actions_footer_bucket'] = recipe.footer_parent
+
     frames: list[A2UIFrame] = []
     for bucket_id, parent_id in bucket_parents.items():
       frames.extend(
@@ -345,6 +374,40 @@ class SkeletonCompiler:
   def _bucket_order(self, bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
 
+  def _bucket_context_for_role(self, role: str) -> BucketContext:
+    slot = self._slot_for_role(role)
+    return self.bucket_context.get(slot, 'main')
+
+  def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
+    context = self._bucket_context_for_role(delta.role)
+
+    role_defaults: dict[str, ArrangementSemantics] = {
+        'hero': ArrangementSemantics(body='inline', facts='fact_row', actions='action_row'),
+        'summary': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
+        'insights': ArrangementSemantics(body='compact_group', facts='fact_grid', actions='action_row'),
+        'details': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
+        'workflow': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
+        'form': ArrangementSemantics(body='stacked', facts='fact_row', actions='footer_actions'),
+        'actions': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
+        'supporting': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_stack'),
+        'list': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
+    }
+    arrangement = role_defaults.get(delta.role, ArrangementSemantics())
+
+    if context == 'side':
+      arrangement = ArrangementSemantics(body=arrangement.body, facts='fact_row', actions='action_stack')
+
+    if context == 'footer' or (delta.role == 'form' and self.emphasis == 'action-first'):
+      arrangement = ArrangementSemantics(body=arrangement.body, facts=arrangement.facts, actions='footer_actions')
+
+    if delta.role in {'summary', 'insights'} and self.page_kind in {'dashboard', 'overview'}:
+      arrangement = ArrangementSemantics(body='compact_group', facts='fact_grid', actions=arrangement.actions)
+
+    if delta.role == 'details' and self.emphasis == 'content-first':
+      arrangement = ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row')
+
+    return arrangement
+
   def _add_region(self, delta: AddRegionDelta) -> list[A2UIFrame]:
     if not self.initialized:
       raise ValueError('init_plan must be emitted before add_region')
@@ -358,6 +421,7 @@ class SkeletonCompiler:
         page_kind=self.page_kind,
         emphasis=self.emphasis,
         layout_hint=self.layout_hint,
+        arrangement=self._arrangement_for(delta),
     )
     result = builder.build(context, self._apply_low_level)
     self.regions[delta.id] = RegionBinding(

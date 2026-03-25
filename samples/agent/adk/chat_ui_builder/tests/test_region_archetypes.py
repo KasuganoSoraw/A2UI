@@ -22,19 +22,11 @@ def _slot_component_ids(frames: list[object]) -> set[str]:
   return component_ids
 
 
-def _data_paths(frames: list[object]) -> list[str]:
-  paths: list[str] = []
-  for frame in frames:
-    data_update = getattr(frame, 'dataModelUpdate', None)
-    if not data_update:
-      continue
-    paths.append(data_update.path)
-  return paths
-
-
-def test_summary_region_uses_explicit_header_and_body_slots() -> None:
+def test_summary_region_uses_compact_fact_strip_slots() -> None:
   compiler = SkeletonCompiler()
-  compiler.apply(InitPlanDelta(event='init_plan', title='Summary page'))
+  compiler.apply(
+      InitPlanDelta(event='init_plan', title='Summary page', page_kind='dashboard', emphasis='analytics-first')
+  )
   frames = compiler.apply(
       AddRegionDelta(
           event='add_region',
@@ -47,19 +39,14 @@ def test_summary_region_uses_explicit_header_and_body_slots() -> None:
 
   binding = compiler.regions['summary_region']
   component_ids = _slot_component_ids(frames)
-  data_paths = _data_paths(frames)
 
-  assert binding.parent_for('text') == 'summary_region_body'
-  assert binding.parent_for('fact') == 'summary_region_summary_facts'
+  assert binding.parent_for('fact') == 'summary_region_fact_grid'
+  assert binding.parent_for('text') == 'summary_region_fact_grid'
   assert 'summary_region_header' in component_ids
-  assert 'summary_region_header_title' in component_ids
-  assert 'summary_region_header_description' in component_ids
-  assert '/sections/summary_region' not in data_paths
-  assert '/content/summary_region_header_title' in data_paths
-  assert '/content/summary_region_header_description' in data_paths
+  assert 'summary_region_fact_grid' in component_ids
 
 
-def test_actions_region_has_stable_primary_and_secondary_slots() -> None:
+def test_actions_region_uses_stack_in_side_rail() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(
       InitPlanDelta(
@@ -74,33 +61,38 @@ def test_actions_region_has_stable_primary_and_secondary_slots() -> None:
   binding = compiler.regions['actions_region']
   component_ids = _slot_component_ids(frames)
 
-  assert binding.parent_for('action_primary') == 'actions_region_actions_primary'
-  assert binding.parent_for('action_secondary') == 'actions_region_actions_secondary'
-  assert 'actions_region_actions_primary' in component_ids
-  assert 'actions_region_actions_secondary' in component_ids
+  assert compiler.role_slots['actions'] == 'actions_bucket'
+  assert binding.parent_for('action_primary') == 'actions_region_action_primary'
+  assert binding.parent_for('action_secondary') == 'actions_region_action_secondary'
+  assert 'actions_region_action_primary' in component_ids
+  assert 'actions_region_action_secondary' in component_ids
 
 
-def test_layout_scaffold_keeps_bucket_order_with_split_layout() -> None:
+def test_form_action_first_routes_actions_to_footer_bucket() -> None:
   compiler = SkeletonCompiler()
-  frames = compiler.apply(
+  init_frames = compiler.apply(
       InitPlanDelta(
           event='init_plan',
-          title='Dashboard',
-          page_kind='dashboard',
-          emphasis='analytics-first',
-          layout_hint='hero_plus_two_column',
+          title='Form',
+          page_kind='form',
+          emphasis='action-first',
+          layout_hint='hero_plus_action_panel',
       )
   )
+  init_component_ids = _slot_component_ids(init_frames)
+
+  assert compiler.role_slots['actions'] == 'actions_footer_bucket'
+  assert 'actions_footer_bucket' in init_component_ids
+
+  frames = compiler.apply(AddRegionDelta(event='add_region', id='actions_form', role='actions', title='Submit'))
+  binding = compiler.regions['actions_form']
   component_ids = _slot_component_ids(frames)
-
-  assert 'layout_split_row' in component_ids
-  assert 'layout_main_content' in component_ids
-  assert 'layout_side_rail' in component_ids
-  assert 'hero_bucket' in component_ids
-  assert 'actions_bucket' in component_ids
+  assert binding.parent_for('action_primary') == 'actions_form_action_primary'
+  assert binding.parent_for('action_secondary') == 'actions_form_action_secondary'
+  assert 'actions_form_action_primary' in component_ids
 
 
-def test_pending_region_deltas_flush_through_structural_slot_mapping() -> None:
+def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Detail page'))
 
@@ -129,7 +121,7 @@ def test_pending_region_deltas_flush_through_structural_slot_mapping() -> None:
 
   assert 'details_region_header' in component_ids
   assert 'details_region_body' in component_ids
-  assert 'details_region_details_actions' in component_ids
-  assert 'details_region_details_facts' in component_ids
+  assert 'details_region_fact_row' in component_ids
+  assert 'details_region_action_row' in component_ids
   assert 'details_cta' in component_ids
   assert 'details_fact' in component_ids
