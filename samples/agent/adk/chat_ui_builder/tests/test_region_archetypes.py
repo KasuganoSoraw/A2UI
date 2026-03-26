@@ -68,15 +68,15 @@ def test_actions_region_uses_stack_in_side_rail() -> None:
   assert 'actions_region_action_secondary' in component_ids
 
 
-def test_form_action_first_routes_actions_to_footer_bucket() -> None:
+def test_layout_scaffold_keeps_bucket_order_with_split_layout() -> None:
   compiler = SkeletonCompiler()
   init_frames = compiler.apply(
       InitPlanDelta(
           event='init_plan',
-          title='Form',
-          page_kind='form',
-          emphasis='action-first',
-          layout_hint='hero_plus_action_panel',
+          title='Dashboard',
+          page_kind='dashboard',
+          emphasis='analytics-first',
+          layout_hint='hero_plus_two_column',
       )
   )
   init_component_ids = _slot_component_ids(init_frames)

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Callable
 
 from models import A2UIFrame, AddRegionDelta, AddSectionDelta, AddTextDelta
 
