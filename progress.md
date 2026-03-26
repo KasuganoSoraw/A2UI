@@ -1,0 +1,1 @@
+- 2026-03-26 任务：chat_ui_builder 收敛为 planning delta 单路径；完成设计文档与开发计划，移除 IntentPlan/legacy fallback 相关代码路径与文件，补充 service 单路径测试并更新 README。
