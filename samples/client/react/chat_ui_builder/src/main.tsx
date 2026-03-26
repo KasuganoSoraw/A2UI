@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import {injectStyles} from '@a2ui/react/styles';
 import {App} from './App';
-import './App.css';
+import './index.css';
 
 injectStyles();
 

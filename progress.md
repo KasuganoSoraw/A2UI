@@ -1,0 +1,13 @@
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind | Stage 1 完成：安装 tailwindcss/@tailwindcss/vite，完成 Vite 插件注册与 index.css 入口接线。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind | Stage 2 完成：App 核心布局/表单/日志/预览样式迁移到 Tailwind，删除 App.css，保留 A2UI 渲染区与 FlowDiagram 必要 CSS。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind | Stage 3 完成：执行构建验证（受本地 @a2ui/react 文件依赖未解析影响失败），已记录结果并收尾。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase2 | Stage 1 完成：抽离 viewStyles 变体常量并在 App 统一接入 cn() 组合。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase2 | Stage 2 完成：为 A2UI 内容区新增语义化 Tailwind 样式层，覆盖 header/body/facts/actions/form/workflow/list，并将 FlowDiagram 迁移为 Tailwind 类。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase2 | Stage 3 完成：执行 npm run build，受本地依赖解析缺失（react/@a2ui/react）影响失败，已记录。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase3 | Stage 1 完成：新增 A2UI 语义标注 hook（MutationObserver）并在 render-surface 接入。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase3 | Stage 2 完成：移除主要 id 后缀依赖，改为基于 sem-* 语义类与 a2ui 组件类型类进行样式附着，FlowDiagram 维持独立稳定外层类。
+- 2026-03-25T00:00:00Z | chat_ui_builder-tailwind-phase3 | Stage 3 完成：执行 npm run build，受本地依赖解析缺失（react/@a2ui/react）影响失败，已记录。
+- 2026-03-26T00:00:00Z | chat_ui_builder-tailwind-phase4 | Stage 1 完成：移除 DOM 推断语义样式 hook 与 App 中对应接线。
+- 2026-03-26T00:00:00Z | chat_ui_builder-tailwind-phase4 | Stage 2 完成：引入稳定 SurfaceViewport 包装层并重构 index.css 为低耦合组件类型样式规则，避免依赖后端 slot/id 形状。
+- 2026-03-26T00:00:00Z | chat_ui_builder-tailwind-phase4 | Stage 3 完成：执行 npm run build，受本地依赖解析缺失（react/@a2ui/react）影响失败，已记录。
+- 2026-03-26T00:00:00Z | chat_ui_builder-single-path | Stage 1 完成：收敛 service 为 planning delta 单路径，移除 IntentPlan/legacy fallback 及其依赖模块，补充 service 流式测试并通过。 

@@ -2,7 +2,9 @@ import {FormEvent, type Dispatch, type SetStateAction, useCallback, useMemo, use
 import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2ui/react';
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
+import {SurfaceViewport} from './components/SurfaceViewport';
 import {cn} from './lib/cn';
+import {buttonVariants, fieldVariants, panelVariants, surfaceVariants} from './lib/viewStyles';
 
 const DEFAULT_API_BASE = 'http://localhost:8010';
 const MAX_LOG_ENTRIES = 40;
@@ -13,18 +15,6 @@ const EXAMPLES = [
   '请生成一个会议准备表单，包含参会人姓名、会议时间、议程、是否需要录屏，以及一个“提交准备信息”按钮。',
   '请生成一个请假审批流程图，包含提交申请、主管审批、通过、驳回修改四个节点，并在下方放一个“发起审批”按钮。',
 ];
-
-const buttonClass = {
-  primary: 'btn btn-primary',
-  secondary: 'btn btn-secondary',
-  ghost: 'btn btn-ghost',
-} as const;
-
-const panelClass = {
-  base: 'panel',
-  info: 'panel panel-muted',
-  status: 'panel panel-status',
-} as const;
 
 const registry = ComponentRegistry.getInstance();
 if (!registry.has('FlowDiagram')) {
@@ -136,7 +126,7 @@ function Shell({onAction}: ShellProps) {
   const exampleButtons = useMemo(
     () =>
       EXAMPLES.map((example) => (
-        <button key={example} type="button" className={cn('example-chip', buttonClass.ghost)} onClick={() => setInput(example)}>
+        <button key={example} type="button" className={cn(buttonVariants.ghost)} onClick={() => setInput(example)}>
           {example}
         </button>
       )),
@@ -156,47 +146,50 @@ function Shell({onAction}: ShellProps) {
   );
 
   return (
-    <div className="page-shell">
-      <aside className={cn('control-panel', panelClass.base)}>
+    <div className="grid min-h-screen grid-cols-1 gap-6 p-4 xl:grid-cols-[minmax(360px,460px)_1fr] xl:p-6">
+      <aside className={cn(panelVariants.primary, 'flex flex-col gap-5 p-6')}>
         <div>
-          <p className="eyebrow">演示</p>
-          <h1>聊天式 A2UI 生成器</h1>
-          <p className="description">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-blue-600">演示</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">聊天式 A2UI 生成器</h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
             左侧输入中文需求，前端通过 <code>fetch + ReadableStream</code> 接收后端返回的 NDJSON A2UI
             帧，并调用 <code>@a2ui/react</code> 的渲染能力实时更新右侧界面。
           </p>
         </div>
 
-        <div className={cn('info-card', panelClass.info)}>
-          <p className="section-title">前端实现说明</p>
-          <ul className="bullet-list">
-            <li>使用 <code>@a2ui/react</code> 提供的 <code>A2UIProvider</code>、<code>A2UIRenderer</code> 与 <code>useA2UIActions</code>。</li>
-            <li>通过 <code>response.body.getReader()</code> 逐行解析 <code>application/x-ndjson</code>。</li>
-            <li>每收到一帧就调用 <code>processMessages([frame])</code>，因此界面会增量更新而不是一次性刷新。</li>
+        <div className={cn(panelVariants.info, 'p-4')}>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-700">前端实现说明</p>
+          <ul className={fieldVariants.list}>
+            <li>
+              使用 <code>@a2ui/react</code> 提供的 <code>A2UIProvider</code>、<code>A2UIRenderer</code> 与{' '}
+              <code>useA2UIActions</code>。
+            </li>
+            <li>
+              通过 <code>response.body.getReader()</code> 逐行解析 <code>application/x-ndjson</code>。
+            </li>
+            <li>
+              每收到一帧就调用 <code>processMessages([frame])</code>，因此界面会增量更新而不是一次性刷新。
+            </li>
           </ul>
         </div>
 
-        <label className="field-group">
+        <label className={fieldVariants.label}>
           <span>后端地址</span>
-          <input value={apiBase} onChange={(e) => setApiBase(e.target.value)} />
+          <input className={fieldVariants.input} value={apiBase} onChange={(e) => setApiBase(e.target.value)} />
         </label>
 
-        <form className="composer" onSubmit={handleSubmit}>
-          <label className="field-group">
+        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+          <label className={fieldVariants.label}>
             <span>需求描述</span>
-            <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={10} />
+            <textarea className={cn(fieldVariants.input, 'min-h-48 resize-y')} value={input} onChange={(e) => setInput(e.target.value)} rows={10} />
           </label>
-          <div className="button-row">
-            <button
-              type="submit"
-              disabled={status === 'streaming'}
-              className={cn(buttonClass.primary, status === 'streaming' && 'is-loading')}
-            >
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" disabled={status === 'streaming'} className={cn(buttonVariants.primary)}>
               {status === 'streaming' ? '生成中…' : '生成界面'}
             </button>
             <button
               type="button"
-              className={buttonClass.secondary}
+              className={buttonVariants.secondary}
               onClick={() => {
                 abortRef.current?.abort();
                 clearSurfaces();
@@ -210,21 +203,26 @@ function Shell({onAction}: ShellProps) {
         </form>
 
         <div>
-          <p className="section-title">示例需求</p>
-          <div className="example-list">{exampleButtons}</div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-700">示例需求</p>
+          <div className="flex flex-wrap gap-2">{exampleButtons}</div>
         </div>
 
-        <div className={cn('status-panel', panelClass.status)}>
-          <p className="section-title">当前状态</p>
-          <p className={cn('status-badge', status)}>
+        <div className={cn(panelVariants.status, 'flex flex-col gap-2 p-4')}>
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-700">当前状态</p>
+          <p
+            className={cn(
+              'inline-flex w-fit items-center justify-center rounded-full px-3 py-1 text-xs font-bold uppercase tracking-[0.08em]',
+              status === 'error' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+            )}
+          >
             {status === 'idle' ? '空闲' : status === 'streaming' ? '流式生成中' : '出错'}
           </p>
-          {error ? <p className="error-text">{error}</p> : null}
+          {error ? <p className="m-0 text-sm text-red-700">{error}</p> : null}
         </div>
 
         <div>
-          <p className="section-title">交互日志</p>
-          <ul className="history-list">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-700">交互日志</p>
+          <ul className={fieldVariants.list}>
             {history.length === 0 ? <li>还没有请求记录。</li> : null}
             {history.slice().reverse().map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>
@@ -233,8 +231,8 @@ function Shell({onAction}: ShellProps) {
         </div>
 
         <div>
-          <p className="section-title">A2UI 动作回调</p>
-          <ul className="history-list">
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-700">A2UI 动作回调</p>
+          <ul className={fieldVariants.list}>
             {actions.length === 0 ? <li>还没有触发动作按钮。</li> : null}
             {actions.slice().reverse().map((entry, index) => (
               <li key={`${entry}-${index}`}>{entry}</li>
@@ -243,11 +241,11 @@ function Shell({onAction}: ShellProps) {
         </div>
 
         <div>
-          <p className="section-title">已接收 A2UI 数据帧</p>
-          <div className="frame-list">
-            {frames.length === 0 ? <p className="empty-state">等待后端返回数据帧…</p> : null}
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-700">已接收 A2UI 数据帧</p>
+          <div className="flex max-h-96 flex-col gap-3 overflow-auto">
+            {frames.length === 0 ? <p className="m-0 text-sm text-slate-500">等待后端返回数据帧…</p> : null}
             {frames.slice().reverse().map((entry, index) => (
-              <pre key={`${index}-${entry}`} className="frame-entry">
+              <pre key={`${index}-${entry}`} className="m-0 whitespace-pre-wrap break-words rounded-2xl bg-slate-900 p-3 text-xs text-slate-200">
                 {entry}
               </pre>
             ))}
@@ -255,36 +253,24 @@ function Shell({onAction}: ShellProps) {
         </div>
       </aside>
 
-      <main className="preview-panel">
-        <div className={cn('preview-card', panelClass.base)}>
-          <div className="preview-header">
-            <div>
-              <p className="eyebrow">实时预览</p>
-              <h2>由 A2UI 帧驱动的界面</h2>
-              <p className="preview-copy">如果模型返回了卡片、按钮、表单等组件，这里会直接按 A2UI 组件树渲染。</p>
-            </div>
-            <button
-              type="button"
-              className={buttonClass.secondary}
-              onClick={() =>
-                handleAction({
-                  userAction: {
-                    name: 'frontend_ping',
-                    surfaceId: 'main',
-                    sourceComponentId: 'preview-header',
-                    timestamp: new Date().toISOString(),
-                    context: {source: 'preview-header'},
-                  },
-                } as Types.A2UIClientEventMessage)
-              }
-            >
-              测试动作回调
-            </button>
-          </div>
-          <div className="render-surface">
-            <A2UIRenderer surfaceId="main" registry={registry} />
-          </div>
-        </div>
+      <main className="min-w-0">
+        <SurfaceViewport
+          title="由 A2UI 帧驱动的界面"
+          description="如果模型返回了卡片、按钮、表单等组件，这里会直接按 A2UI 组件树渲染。"
+          onPing={() =>
+            handleAction({
+              userAction: {
+                name: 'frontend_ping',
+                surfaceId: 'main',
+                sourceComponentId: 'preview-header',
+                timestamp: new Date().toISOString(),
+                context: {source: 'preview-header'},
+              },
+            } as Types.A2UIClientEventMessage)
+          }
+        >
+          <A2UIRenderer surfaceId="main" registry={registry} />
+        </SurfaceViewport>
       </main>
     </div>
   );
@@ -302,7 +288,9 @@ export function App() {
     <A2UIProvider onAction={handleAction}>
       <Shell onAction={handleAction} />
       {lastAction ? (
-        <div className={cn('action-toast', panelClass.base)}>最近动作：{lastAction.userAction?.name ?? 'unknown'}</div>
+        <div className={cn(panelVariants.primary, 'fixed right-6 bottom-6 px-5 py-3 text-sm font-semibold text-slate-800')}>
+          最近动作：{lastAction.userAction?.name ?? 'unknown'}
+        </div>
       ) : null}
     </A2UIProvider>
   );
