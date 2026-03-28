@@ -42,11 +42,9 @@ BUCKET_ORDER = {
     'list_bucket': 60,
     'supporting_bucket': 70,
     'actions_bucket': 80,
-    'actions_footer_bucket': 85,
-    'layout_split_row': 90,
 }
 
-BucketContext = Literal['main', 'side', 'footer']
+BucketContext = Literal['main']
 
 
 @dataclass
@@ -70,10 +68,7 @@ class RegionBinding:
 
 @dataclass
 class LayoutRecipe:
-  root_parent: str
-  main_parent: str
-  side_parent: str
-  footer_parent: str
+  parent: str
   role_slots: dict[str, str]
   bucket_context: dict[str, BucketContext]
 
@@ -90,6 +85,7 @@ class SkeletonCompiler:
     self.bucket_context: dict[str, BucketContext] = {}
     self.regions: dict[str, RegionBinding] = {}
     self.pending_region_deltas: dict[str, list[PendingRegionDelta]] = {}
+    self.flow_region_overrides: dict[str, str] = {}
 
   def apply(self, delta: object) -> list[A2UIFrame]:
     payload = delta.model_dump() if hasattr(delta, 'model_dump') else delta
@@ -191,18 +187,23 @@ class SkeletonCompiler:
           ),
       )
     if isinstance(delta, AddRegionFlowDiagramDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'flow',
-          lambda parent_id: AddFlowDiagramDelta(
-              event='add_flow_diagram',
-              id=delta.id,
-              parent_id=parent_id,
-              title=delta.title,
-              nodes=delta.nodes,
-              edges=delta.edges,
-          ),
+      flow_region_id, prefix_frames = self._resolve_flow_region(delta.region_id)
+      frames = list(prefix_frames)
+      frames.extend(
+          self._apply_region_delta(
+              flow_region_id,
+              'flow',
+              lambda parent_id: AddFlowDiagramDelta(
+                  event='add_flow_diagram',
+                  id=delta.id,
+                  parent_id=parent_id,
+                  title=delta.title,
+                  nodes=delta.nodes,
+                  edges=delta.edges,
+              ),
+          )
       )
+      return frames
     if isinstance(delta, FinalizeDelta):
       return self._finalize()
     return []
@@ -211,14 +212,6 @@ class SkeletonCompiler:
     return self.frame_compiler.apply(delta)
 
   def _resolve_layout(self, delta: InitPlanDelta) -> str:
-    if delta.layout_hint != 'auto':
-      return delta.layout_hint
-    if delta.emphasis == 'action-first' or delta.page_kind == 'approval_workflow':
-      return 'hero_plus_action_panel'
-    if delta.emphasis == 'analytics-first' or delta.page_kind == 'dashboard':
-      return 'hero_plus_two_column'
-    if delta.page_kind == 'detail':
-      return 'two_column'
     return 'single_column'
 
   def _init_plan(self, delta: InitPlanDelta) -> list[A2UIFrame]:
@@ -230,6 +223,7 @@ class SkeletonCompiler:
     self.bucket_context = {}
     self.regions = {}
     self.pending_region_deltas = {}
+    self.flow_region_overrides = {}
 
     frames = self._apply_low_level(
         InitSurfaceDelta(
@@ -246,39 +240,6 @@ class SkeletonCompiler:
   def _build_layout_scaffold(self) -> list[A2UIFrame]:
     recipe = self._layout_recipe()
     frames: list[A2UIFrame] = []
-
-    if self.layout_hint != 'single_column':
-      row_id = 'layout_split_row'
-      main_lane_id = 'layout_main_lane'
-      side_lane_id = 'layout_side_lane'
-      main_content_id = 'layout_main_content'
-      side_rail_id = 'layout_side_rail'
-      main_footer_id = 'layout_main_footer'
-      frames.extend(
-          self._apply_low_level(
-              AddSectionDelta(
-                  event='add_section',
-                  id=row_id,
-                  parent_id='root',
-                  layout='Row',
-                  order=self._bucket_order(row_id),
-              )
-          )
-      )
-      frames.extend(self._apply_low_level(AddSectionDelta(event='add_section', id=main_lane_id, parent_id=row_id, layout='Column')))
-      frames.extend(self._apply_low_level(AddSectionDelta(event='add_section', id=side_lane_id, parent_id=row_id, layout='Column')))
-      frames.extend(
-          self._apply_low_level(
-              AddSectionDelta(event='add_section', id=main_content_id, parent_id=main_lane_id, layout='Column', order=10)
-          )
-      )
-      frames.extend(
-          self._apply_low_level(
-              AddSectionDelta(event='add_section', id=main_footer_id, parent_id=main_lane_id, layout='Column', order=20)
-          )
-      )
-      frames.extend(self._apply_low_level(AddSectionDelta(event='add_section', id=side_rail_id, parent_id=side_lane_id, layout='Column')))
-
     frames.extend(self._build_role_buckets(recipe))
     self.role_slots = recipe.role_slots
     self.bucket_context = recipe.bucket_context
@@ -316,45 +277,23 @@ class SkeletonCompiler:
         'actions_bucket': 'main',
     }
 
-    root_parent = 'root'
-    main_parent = 'root'
-    side_parent = 'root'
-    footer_parent = 'root'
-
-    if self.layout_hint != 'single_column':
-      main_parent = 'layout_main_content'
-      side_parent = 'layout_side_rail'
-      footer_parent = 'layout_main_footer'
-      root_parent = 'root' if self.layout_hint.startswith('hero_plus') else main_parent
-      bucket_context['supporting_bucket'] = 'side'
-      bucket_context['actions_bucket'] = 'side'
-
-    if self.page_kind == 'form' and self.emphasis == 'action-first':
-      role_slots['actions'] = 'actions_footer_bucket'
-      bucket_context['actions_footer_bucket'] = 'footer'
-
     return LayoutRecipe(
-        root_parent=root_parent,
-        main_parent=main_parent,
-        side_parent=side_parent,
-        footer_parent=footer_parent,
+        parent='root',
         role_slots=role_slots,
         bucket_context=bucket_context,
     )
 
   def _build_role_buckets(self, recipe: LayoutRecipe) -> list[A2UIFrame]:
     bucket_parents = {
-        'hero_bucket': recipe.root_parent,
-        'summary_bucket': recipe.main_parent,
-        'details_bucket': recipe.main_parent,
-        'workflow_bucket': recipe.main_parent,
-        'form_bucket': recipe.main_parent,
-        'list_bucket': recipe.main_parent,
-        'supporting_bucket': recipe.side_parent,
-        'actions_bucket': recipe.side_parent,
+        'hero_bucket': recipe.parent,
+        'summary_bucket': recipe.parent,
+        'details_bucket': recipe.parent,
+        'workflow_bucket': recipe.parent,
+        'form_bucket': recipe.parent,
+        'list_bucket': recipe.parent,
+        'supporting_bucket': recipe.parent,
+        'actions_bucket': recipe.parent,
     }
-    if recipe.role_slots.get('actions') == 'actions_footer_bucket':
-      bucket_parents['actions_footer_bucket'] = recipe.footer_parent
 
     frames: list[A2UIFrame] = []
     for bucket_id, parent_id in bucket_parents.items():
@@ -374,31 +313,19 @@ class SkeletonCompiler:
   def _bucket_order(self, bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
 
-  def _bucket_context_for_role(self, role: str) -> BucketContext:
-    slot = self._slot_for_role(role)
-    return self.bucket_context.get(slot, 'main')
-
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
-    context = self._bucket_context_for_role(delta.role)
-
     role_defaults: dict[str, ArrangementSemantics] = {
-        'hero': ArrangementSemantics(body='inline', facts='fact_row', actions='action_row'),
+        'hero': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
         'summary': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
         'insights': ArrangementSemantics(body='compact_group', facts='fact_grid', actions='action_row'),
         'details': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
         'workflow': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'form': ArrangementSemantics(body='stacked', facts='fact_row', actions='footer_actions'),
+        'form': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
         'actions': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
-        'supporting': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_stack'),
+        'supporting': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
         'list': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
     }
     arrangement = role_defaults.get(delta.role, ArrangementSemantics())
-
-    if context == 'side':
-      arrangement = ArrangementSemantics(body=arrangement.body, facts='fact_row', actions='action_stack')
-
-    if context == 'footer' or (delta.role == 'form' and self.emphasis == 'action-first'):
-      arrangement = ArrangementSemantics(body=arrangement.body, facts=arrangement.facts, actions='footer_actions')
 
     if delta.role in {'summary', 'insights'} and self.page_kind in {'dashboard', 'overview'}:
       arrangement = ArrangementSemantics(body='compact_group', facts='fact_grid', actions=arrangement.actions)
@@ -407,6 +334,38 @@ class SkeletonCompiler:
       arrangement = ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row')
 
     return arrangement
+
+  def _resolve_flow_region(self, source_region_id: str) -> tuple[str, list[A2UIFrame]]:
+    if source_region_id in self.regions and self.regions[source_region_id].role == 'workflow':
+      return source_region_id, []
+
+    target_region_id = self.flow_region_overrides.get(source_region_id)
+    if target_region_id is None:
+      base_id = f'{source_region_id}_workflow_region'
+      target_region_id = base_id
+      suffix = 2
+      while target_region_id in self.regions and self.regions[target_region_id].role != 'workflow':
+        target_region_id = f'{base_id}_{suffix}'
+        suffix += 1
+      self.flow_region_overrides[source_region_id] = target_region_id
+
+    if target_region_id in self.regions:
+      return target_region_id, []
+
+    title = '流程图'
+    if source_region_id in self.regions and self.regions[source_region_id].role != 'workflow':
+      title = f'{source_region_id}流程图'
+    frames = self._add_region(
+        AddRegionDelta(
+            event='add_region',
+            id=target_region_id,
+            role='workflow',
+            title=title,
+            description='为流程图重组件自动创建的独立区域。',
+            importance='medium',
+        )
+    )
+    return target_region_id, frames
 
   def _add_region(self, delta: AddRegionDelta) -> list[A2UIFrame]:
     if not self.initialized:

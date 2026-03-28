@@ -72,7 +72,7 @@ PLANNING_DELTA_CONTRACT = [
 
 SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 
-你的任务是读取用户自然语言需求，并输出 **planning delta NDJSON**：
+你的任务是读取上游 Agent 结果数据，并输出 **planning delta NDJSON**：
 - 每一行都是一个独立的 JSON 对象
 - 不要输出 Markdown
 - 不要输出解释文字
@@ -81,7 +81,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 
 后端会负责：
 1. 根据 init_plan 决定页面骨架与布局 scaffold
-2. 根据 region role 决定主栏 / 侧栏 / actions panel / list 容器
+2. 根据 region role 决定单列展示容器
 3. 把高层规划事件编译成 A2UI beginRendering / surfaceUpdate / dataModelUpdate
 
 所以你只需要输出**高层规划事件**，不要输出低层 UI 命令。
@@ -93,37 +93,51 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 1. 第一行必须是 `init_plan`。
 2. 之后优先输出 `add_region`，让页面骨架尽早出现，再输出该 region 的内容条目。
 3. 所有内容都要挂到某个 `region_id`，而不是直接描述 A2UI 组件树。
-4. 如果用户有明确动作，输出 `actions` region 或在已有 region 中输出 `add_region_action`。
-5. 如果用户描述列表，用 `append_region_list_item` 逐条输出。
-6. 如果用户描述流程或审批，输出 `workflow` region，并尽量补 `add_region_flow_diagram`。
-7. 如果用户描述表单，输出 `form` region，并用 `add_region_input` 逐条输出字段。
-8. 不要等想完整页后再一次性输出；请按“页面 -> section -> 条目”的顺序尽早流式输出。
-9. 最后一行输出 `{{"event":"finalize_plan"}}`。
+4. A2UI 是展示层：只能展示输入已有信息，不得补充根因、解决方案、建议动作、排障步骤。
+5. `source_data` 决定“可展示的内容边界”；`user_query` 只可用于标题、摘要和排序优先级。
+6. 只有当 `source_data` 明确包含 actions/recommendations/next_steps/available_actions 时，才允许 `actions` region 或 `add_region_action`。
+7. 如果输入是日志、明细、记录、JSON，请优先 `summary/details/list/workflow`，并保留 evidence/raw 信息，不要改写成“建议处理流程”。
+8. `add_region_text` 只可写有输入依据的摘要；`add_region_flow_diagram` 只可表达输入中的关系或流程。
+9. 不要等想完整页后再一次性输出；请按“页面 -> section -> 条目”的顺序尽早流式输出。
+10. 最后一行输出 `{{"event":"finalize_plan"}}`。
 
-## 示例：客户概览
-{{"event":"init_plan","surface_id":"main","title":"客户摘要","summary":"重点客户的关键信息与下一步动作","page_kind":"overview","emphasis":"balanced","layout_hint":"auto"}}
-{{"event":"add_region","id":"hero_section","role":"hero","title":"客户信息","importance":"high"}}
-{{"event":"add_region_fact","id":"customer_name_fact","region_id":"hero_section","label":"姓名","value":"Alice"}}
-{{"event":"add_region_fact","id":"customer_tier_fact","region_id":"hero_section","label":"等级","value":"VIP"}}
-{{"event":"add_region","id":"orders_section","role":"list","title":"最近订单","importance":"medium"}}
-{{"event":"append_region_list_item","id":"order_1024","region_id":"orders_section","title":"订单 #1024","detail":"金额 ¥300，状态 已完成"}}
-{{"event":"add_region","id":"actions_section","role":"actions","title":"下一步动作","importance":"high"}}
-{{"event":"add_region_action","id":"follow_up_action","region_id":"actions_section","label":"跟进客户","action_name":"follow_up_customer","primary":true}}
+## 示例：日志与指标展示（无动作项，不生成 actions）
+{{"event":"init_plan","surface_id":"main","title":"服务运行概览","summary":"展示上游返回的指标、日志与异常样本","page_kind":"overview","emphasis":"balanced","layout_hint":"auto"}}
+{{"event":"add_region","id":"summary_section","role":"summary","title":"关键指标","importance":"high"}}
+{{"event":"add_region_fact","id":"error_rate_fact","region_id":"summary_section","label":"错误率","value":"2.1%"}} 
+{{"event":"add_region","id":"log_list","role":"list","title":"最近异常日志","importance":"medium"}}
+{{"event":"append_region_list_item","id":"log_1","region_id":"log_list","title":"10:32 timeout","detail":"request_id=abc123 endpoint=/predict"}} 
+{{"event":"add_region","id":"raw_json","role":"details","title":"原始证据","description":"保留上游返回的原始片段","importance":"medium"}}
+{{"event":"add_region_text","id":"raw_json_text","region_id":"raw_json","text":"{{\\\"trace_id\\\":\\\"abc123\\\",\\\"status\\\":\\\"timeout\\\"}}","usage_hint":"caption"}}
 {{"event":"finalize_plan"}}
 
-## 示例：审批流
-{{"event":"init_plan","surface_id":"main","title":"审批流程","summary":"请假单审批路径","page_kind":"approval_workflow","emphasis":"action-first","layout_hint":"auto"}}
-{{"event":"add_region","id":"workflow_section","role":"workflow","title":"审批流程图","importance":"high"}}
-{{"event":"add_region_flow_diagram","id":"leave_flow","region_id":"workflow_section","title":"请假审批","nodes":[{{"id":"submit","label":"提交申请","column":0,"lane":0,"kind":"start"}},{{"id":"manager","label":"主管审批","column":1,"lane":0,"kind":"decision"}},{{"id":"approve","label":"审批通过","column":2,"lane":0,"kind":"end"}},{{"id":"reject","label":"驳回修改","column":2,"lane":1,"kind":"end"}}],"edges":[{{"from_id":"submit","to_id":"manager"}},{{"from_id":"manager","to_id":"approve","label":"通过"}},{{"from_id":"manager","to_id":"reject","label":"驳回"}}]}}
-{{"event":"add_region","id":"actions_section","role":"actions","title":"操作","importance":"medium"}}
-{{"event":"add_region_action","id":"start_approval_action","region_id":"actions_section","label":"发起审批","action_name":"start_approval","primary":true}}
-{{"event":"add_region_action","id":"record_note_action","region_id":"actions_section","label":"记录备注","action_name":"record_note"}}
-{{"event":"finalize_plan"}}
+## 输入格式
+你会收到一个 JSON 对象，字段如下：
+- `source_data`: 上游 Agent 返回的数据（主输入）
+- `user_query`: 原始用户问题（可选，仅用于展示重点）
+- `display_goal`: 固定为“忠实展示上游结果，禁止编造”
 """
 
 
-def build_messages(user_message: str) -> list[dict[str, str]]:
+def build_messages(
+    user_message: str | None = None,
+    source_data: object | None = None,
+    user_query: str | None = None,
+) -> list[dict[str, str]]:
+  resolved_source_data = source_data
+  if resolved_source_data is None:
+    resolved_source_data = {'message': user_message or ''}
+
+  resolved_user_query = user_query
+  if resolved_user_query is None and user_message:
+    resolved_user_query = user_message
+
+  planner_input = {
+      'source_data': resolved_source_data,
+      'user_query': resolved_user_query,
+      'display_goal': '忠实展示上游结果，禁止编造新增业务结论',
+  }
   return [
       {'role': 'system', 'content': SYSTEM_PROMPT},
-      {'role': 'user', 'content': user_message},
+      {'role': 'user', 'content': json.dumps(planner_input, ensure_ascii=False)},
   ]

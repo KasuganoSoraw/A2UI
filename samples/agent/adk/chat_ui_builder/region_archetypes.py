@@ -269,20 +269,10 @@ class SupportingArchetypeBuilder(RegionArchetypeBuilder):
   archetype_name = 'supporting_block'
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
-    region_id = context.delta.id
-    compact_id = f'{region_id}_compact_meta'
     return self._base_region(
         context,
         emit,
-        include_body_slot=False,
-        slot_specs=[
-            SlotSpec(name='text', section_id=compact_id, layout='Row', order=20),
-        ],
-        slot_parents={
-            'fact': compact_id,
-            'image': compact_id,
-            'divider': compact_id,
-        },
+        include_body_slot=True,
     )
 
 
