@@ -100,6 +100,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 8. `add_region_text` 只可写有输入依据的摘要；`add_region_flow_diagram` 只可表达输入中的关系或流程。
 9. 不要等想完整页后再一次性输出；请按“页面 -> section -> 条目”的顺序尽早流式输出。
 10. 最后一行输出 `{{"event":"finalize_plan"}}`。
+11. 日志搜索/日志结果场景优先模板：`summary -> list(details timeline) -> supporting(context) -> details(raw data)`。
 
 ## 示例：日志与指标展示（无动作项，不生成 actions）
 {{"event":"init_plan","surface_id":"main","title":"服务运行概览","summary":"展示上游返回的指标、日志与异常样本","page_kind":"overview","emphasis":"balanced","layout_hint":"auto"}}

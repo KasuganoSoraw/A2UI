@@ -163,3 +163,41 @@ def test_stream_frames_filters_actions_when_source_data_has_no_explicit_actions(
   }
   assert 'actions_region' not in component_ids
   assert 'restart_action' not in component_ids
+
+
+def test_stream_frames_uses_log_search_template_without_llm(monkeypatch) -> None:
+  async def fake_acompletion(**_: object) -> FakeResponse:
+    raise AssertionError('log template path should not call acompletion')
+
+  monkeypatch.setattr(service_module, 'acompletion', fake_acompletion)
+
+  frames = asyncio.run(
+      _collect_frames(
+          ChatUIService(),
+          message=None,
+          source_data={
+              'query': 'service=prediction',
+              'ciName': 'prediction-service',
+              'records': [
+                  {
+                      'timestamp': '2026-03-28T10:32:12',
+                      'exceptionType': 'TimeoutError',
+                      'level': 'ERROR',
+                      'logContent': 'request_id=abc123 upstream timeout',
+                  }
+              ],
+          },
+          user_query='展示日志搜索结果',
+      )
+  )
+
+  component_ids = {
+      component.id
+      for frame in frames
+      if frame.surfaceUpdate
+      for component in frame.surfaceUpdate.components
+  }
+  assert 'log_overview_region' in component_ids
+  assert 'log_event_timeline_region' in component_ids
+  assert 'log_context_region' in component_ids
+  assert 'log_raw_data_region' in component_ids

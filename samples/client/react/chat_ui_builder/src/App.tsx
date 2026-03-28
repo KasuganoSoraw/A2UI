@@ -14,6 +14,28 @@ const EXAMPLES = [
   '请生成一个请假审批流程图，包含提交申请、主管审批、通过、驳回修改四个节点，并在下方放一个“发起审批”按钮。',
 ];
 
+const LOG_SOURCE_DATA_EXAMPLE = `{
+  "query": "service=prediction level>=error",
+  "source": "log_search_agent",
+  "ciName": "prediction-service",
+  "ciType": "service",
+  "abnormalityId": "abn-20260328-001",
+  "records": [
+    {
+      "timestamp": "2026-03-28T10:32:12",
+      "exceptionType": "TimeoutError",
+      "level": "ERROR",
+      "logContent": "request_id=abc123 upstream timeout"
+    },
+    {
+      "timestamp": "2026-03-28T10:33:01",
+      "exceptionType": "ConnectionReset",
+      "level": "WARN",
+      "logContent": "request_id=abc124 connection reset by peer"
+    }
+  ]
+}`;
+
 const buttonClass = {
   primary: 'btn btn-primary',
   secondary: 'btn btn-secondary',
@@ -46,6 +68,7 @@ function pushEntry(setter: Dispatch<SetStateAction<string[]>>, entry: string) {
 function Shell({onAction}: ShellProps) {
   const {processMessages, clearSurfaces} = useA2UIActions();
   const [input, setInput] = useState(EXAMPLES[0]);
+  const [sourceDataInput, setSourceDataInput] = useState('');
   const [status, setStatus] = useState<'idle' | 'streaming' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
@@ -55,7 +78,7 @@ function Shell({onAction}: ShellProps) {
   const abortRef = useRef<AbortController | null>(null);
 
   const submit = useCallback(
-    async (message: string) => {
+    async (message: string, sourceDataText: string) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -65,12 +88,25 @@ function Shell({onAction}: ShellProps) {
       setError(null);
       pushEntry(setHistory, `用户输入：${message}`);
       pushEntry(setHistory, `请求地址：${apiBase}/api/chat/stream`);
+      if (sourceDataText.trim()) {
+        pushEntry(setHistory, '请求模式：source_data + user_query');
+      }
 
       try {
+        let payload: Record<string, unknown>;
+        if (sourceDataText.trim()) {
+          payload = {
+            source_data: JSON.parse(sourceDataText),
+            user_query: message,
+          };
+        } else {
+          payload = {message};
+        }
+
         const response = await fetch(`${apiBase}/api/chat/stream`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({message}),
+          body: JSON.stringify(payload),
           signal: controller.signal,
         });
 
@@ -128,9 +164,9 @@ function Shell({onAction}: ShellProps) {
       event.preventDefault();
       const trimmed = input.trim();
       if (!trimmed) return;
-      await submit(trimmed);
+      await submit(trimmed, sourceDataInput);
     },
-    [input, submit]
+    [input, sourceDataInput, submit]
   );
 
   const exampleButtons = useMemo(
@@ -186,6 +222,15 @@ function Shell({onAction}: ShellProps) {
             <span>需求描述</span>
             <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={10} />
           </label>
+          <label className="field-group">
+            <span>source_data（可选 JSON）</span>
+            <textarea
+              value={sourceDataInput}
+              onChange={(e) => setSourceDataInput(e.target.value)}
+              rows={10}
+              placeholder='留空时按 message 模式调用；填写后按 source_data + user_query 模式调用'
+            />
+          </label>
           <div className="button-row">
             <button
               type="submit"
@@ -212,6 +257,18 @@ function Shell({onAction}: ShellProps) {
         <div>
           <p className="section-title">示例需求</p>
           <div className="example-list">{exampleButtons}</div>
+          <div className="button-row" style={{marginTop: 12}}>
+            <button
+              type="button"
+              className={buttonClass.secondary}
+              onClick={() => {
+                setInput('帮我按时间线展示日志异常并保留原始数据证据');
+                setSourceDataInput(LOG_SOURCE_DATA_EXAMPLE);
+              }}
+            >
+              填充日志模板示例
+            </button>
+          </div>
         </div>
 
         <div className={cn('status-panel', panelClass.status)}>
