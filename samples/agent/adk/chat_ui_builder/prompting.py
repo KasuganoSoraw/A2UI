@@ -26,7 +26,7 @@ PLANNING_DELTA_CONTRACT = [
         'id': 'string',
         'region_id': 'string',
         'text': 'string',
-        'usage_hint': 'h1 | h2 | h3 | body | caption',
+        'usage_hint': 'h1 | h2 | h3 | body | caption | warning',
     },
     {
         'event': 'add_region_fact',
@@ -100,17 +100,6 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 8. `add_region_text` 只可写有输入依据的摘要；`add_region_flow_diagram` 只可表达输入中的关系或流程。
 9. 不要等想完整页后再一次性输出；请按“页面 -> section -> 条目”的顺序尽早流式输出。
 10. 最后一行输出 `{{"event":"finalize_plan"}}`。
-11. 日志搜索/日志结果场景优先模板：`summary -> list(details timeline) -> supporting(context) -> details(raw data)`。
-
-## 示例：日志与指标展示（无动作项，不生成 actions）
-{{"event":"init_plan","surface_id":"main","title":"服务运行概览","summary":"展示上游返回的指标、日志与异常样本","page_kind":"overview","emphasis":"balanced","layout_hint":"auto"}}
-{{"event":"add_region","id":"summary_section","role":"summary","title":"关键指标","importance":"high"}}
-{{"event":"add_region_fact","id":"error_rate_fact","region_id":"summary_section","label":"错误率","value":"2.1%"}} 
-{{"event":"add_region","id":"log_list","role":"list","title":"最近异常日志","importance":"medium"}}
-{{"event":"append_region_list_item","id":"log_1","region_id":"log_list","title":"10:32 timeout","detail":"request_id=abc123 endpoint=/predict"}} 
-{{"event":"add_region","id":"raw_json","role":"details","title":"原始证据","description":"保留上游返回的原始片段","importance":"medium"}}
-{{"event":"add_region_text","id":"raw_json_text","region_id":"raw_json","text":"{{\\\"trace_id\\\":\\\"abc123\\\",\\\"status\\\":\\\"timeout\\\"}}","usage_hint":"caption"}}
-{{"event":"finalize_plan"}}
 
 ## 输入格式
 你会收到一个 JSON 对象，字段如下：

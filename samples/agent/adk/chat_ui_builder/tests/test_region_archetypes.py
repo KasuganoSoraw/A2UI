@@ -15,6 +15,7 @@ from models import (
     FlowDiagramEdge,
     FlowDiagramNode,
     InitPlanDelta,
+    AddRegionTextDelta,
 )
 from skeleton_compiler import SkeletonCompiler
 
@@ -170,3 +171,29 @@ def test_flow_diagram_uses_dedicated_workflow_region_when_source_region_is_not_w
   flow_component_ids = _slot_component_ids(flow_frames)
   assert flow_parent_path == 'details_region_workflow_region_flow'
   assert 'approval_flow' in flow_component_ids
+
+
+def test_warning_usage_hint_is_preserved_in_compiled_text_component() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Warning page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='summary_region', role='summary', title='Summary'))
+  frames = compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='warning_text',
+          region_id='summary_region',
+          text='高风险变更窗口，请谨慎操作。',
+          usage_hint='warning',
+      )
+  )
+
+  warning_components = []
+  for frame in frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'warning_text':
+        warning_components.append(component)
+
+  assert warning_components
+  assert warning_components[0].component['Text']['usageHint'] == 'warning'

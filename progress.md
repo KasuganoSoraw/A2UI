@@ -2,3 +2,4 @@
 - 2026-03-27 任务：chat_ui_builder 布局编译收敛为单列；删除双栏 scaffold 与 side context，统一 bucket 落主列，新增 flow diagram 自动独占 workflow region 规则，并同步更新 archetype 测试用例。
 - 2026-03-28 任务：A2UI 定位收敛为上游 Agent 结果展示层；重写 planner prompt 的“只展示不编造”约束，新增 source_data/user_query 输入形态，后端增加无动作项时过滤 actions 的最小约束，并更新 API/README 与服务层测试。
 - 2026-03-28 任务：实现日志搜索展示模板 log_search_result_template；新增日志输入判定与模板化 planning delta 生成（概览/时间线/上下文/原始数据），service 接入模板直编译路径，前端增加 source_data JSON 输入与日志示例按钮，并补充模板链路测试。
+- 2026-03-28 任务：完成去场景特化重构；从通用 prompt 移除日志 one-shot 与日志优先模板描述，删除 log_template.py 及 service 调用链，新增通用 warning usage_hint（schema/contract/测试/前端样式），并恢复纯通用 role+archetype 主链。

@@ -14,28 +14,6 @@ const EXAMPLES = [
   '请生成一个请假审批流程图，包含提交申请、主管审批、通过、驳回修改四个节点，并在下方放一个“发起审批”按钮。',
 ];
 
-const LOG_SOURCE_DATA_EXAMPLE = `{
-  "query": "service=prediction level>=error",
-  "source": "log_search_agent",
-  "ciName": "prediction-service",
-  "ciType": "service",
-  "abnormalityId": "abn-20260328-001",
-  "records": [
-    {
-      "timestamp": "2026-03-28T10:32:12",
-      "exceptionType": "TimeoutError",
-      "level": "ERROR",
-      "logContent": "request_id=abc123 upstream timeout"
-    },
-    {
-      "timestamp": "2026-03-28T10:33:01",
-      "exceptionType": "ConnectionReset",
-      "level": "WARN",
-      "logContent": "request_id=abc124 connection reset by peer"
-    }
-  ]
-}`;
-
 const buttonClass = {
   primary: 'btn btn-primary',
   secondary: 'btn btn-secondary',
@@ -257,18 +235,6 @@ function Shell({onAction}: ShellProps) {
         <div>
           <p className="section-title">示例需求</p>
           <div className="example-list">{exampleButtons}</div>
-          <div className="button-row" style={{marginTop: 12}}>
-            <button
-              type="button"
-              className={buttonClass.secondary}
-              onClick={() => {
-                setInput('帮我按时间线展示日志异常并保留原始数据证据');
-                setSourceDataInput(LOG_SOURCE_DATA_EXAMPLE);
-              }}
-            >
-              填充日志模板示例
-            </button>
-          </div>
         </div>
 
         <div className={cn('status-panel', panelClass.status)}>

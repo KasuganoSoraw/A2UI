@@ -63,16 +63,6 @@ uv run .
 
 兼容旧格式（`message`）仍可使用，但推荐以 `source_data` 作为主输入。
 
-### 日志搜索模板（log_search_result_template）
-
-当 `source_data` 命中日志结果特征（如 `exceptionInfos/logs/records/events`）时，后端会走内置展示模板，稳定产出：
-- 概览区（标题、事实性摘要、关键统计）
-- 事件主视图（按时间顺序列表）
-- 对象与上下文区（ciName/ciType/abnormalityId/query/source）
-- 原始数据区（JSON 证据）
-
-该模板默认不生成 actions 区，除非输入中显式包含动作项。
-
 返回：
 - `application/x-ndjson`
 - 每一行都是一个合法的 A2UI envelope（`beginRendering`、`surfaceUpdate`、`dataModelUpdate` 或 `deleteSurface`）

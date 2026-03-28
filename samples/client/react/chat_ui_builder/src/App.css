@@ -185,6 +185,16 @@ code {
   margin-top: 4px;
 }
 
+.render-surface .a2ui-text[data-usage-hint='warning'] section,
+.render-surface .a2ui-text [data-usage-hint='warning'],
+.render-surface .a2ui-text-warning {
+  color: #b54708;
+  background: rgba(255, 244, 229, 0.85);
+  border-left: 3px solid #f59e0b;
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
 .render-surface .a2ui-textfield section,
 .render-surface .a2ui-multiplechoice section {
   display: flex;

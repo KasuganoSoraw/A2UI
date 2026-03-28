@@ -35,7 +35,7 @@ class AddRegionTextDelta(BaseModel):
   id: str
   region_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
 
 
 class AddRegionFactDelta(BaseModel):
@@ -116,7 +116,7 @@ class AddTextDelta(BaseModel):
   id: str
   parent_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
 
 
 class AddKeyValueDelta(BaseModel):

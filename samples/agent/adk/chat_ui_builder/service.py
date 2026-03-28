@@ -8,7 +8,6 @@ from typing import Any
 from litellm import acompletion
 
 from compiler import FrameCompiler
-from log_template import build_log_template_deltas, is_log_search_source
 from models import A2UIFrame, AddRegionActionDelta, AddRegionDelta, AddTextDelta, InitSurfaceDelta
 from planning_stream import PlanningDeltaRecord, PlanningDeltaStreamParser
 from prompting import build_messages
@@ -42,12 +41,6 @@ class ChatUIService:
     for frame in self._loading_frames():
       logger.info('[%s] Emitting loading frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
       yield frame
-
-    if isinstance(source_data, dict) and is_log_search_source(source_data):
-      logger.info('[%s] Detected log-search source_data, using log_search_result_template.', request_id)
-      for frame in self._compile_log_template(source_data, user_query, skeleton_compiler, request_id, allow_actions):
-        yield frame
-      return
 
     logger.info(
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
@@ -137,26 +130,6 @@ class ChatUIService:
     if isinstance(delta, AddRegionDelta) and delta.role == 'actions':
       return True
     return False
-
-  def _compile_log_template(
-      self,
-      source_data: dict[str, Any],
-      user_query: str | None,
-      skeleton_compiler: SkeletonCompiler,
-      request_id: str,
-      allow_actions: bool,
-  ) -> list[A2UIFrame]:
-    frames: list[A2UIFrame] = []
-    deltas = build_log_template_deltas(source_data=source_data, user_query=user_query)
-    for delta in deltas:
-      if not allow_actions and self._is_action_event(delta):
-        continue
-      logger.info('[%s] Log template delta=%s', request_id, _truncate(delta.model_dump()))
-      compiled = skeleton_compiler.apply(delta)
-      for frame in compiled:
-        logger.info('[%s] Emitting log-template frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
-      frames.extend(compiled)
-    return frames
 
   def _has_explicit_actions(self, source_data: Any) -> bool:
     if source_data is None:
