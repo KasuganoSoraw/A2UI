@@ -1,0 +1,2 @@
+- 2026-03-26 任务：chat_ui_builder 收敛为 planning delta 单路径；完成设计文档与开发计划，移除 IntentPlan/legacy fallback 相关代码路径与文件，补充 service 单路径测试并更新 README。
+- 2026-03-27 任务：chat_ui_builder 布局编译收敛为单列；删除双栏 scaffold 与 side context，统一 bucket 落主列，新增 flow diagram 自动独占 workflow region 规则，并同步更新 archetype 测试用例。
