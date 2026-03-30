@@ -6,3 +6,4 @@
 - 2026-03-30 任务：增强通用 prompt/planning contract 语义；补充 usage_hint（h1/h2/h3/body/caption/warning）解释，新增 FlowDiagram 通用规则与 one-shot 示例，扩展 list item 的可选 usage_hint 字段并实现“模型优先、后端兜底”透传策略，更新对应测试。
 - 2026-03-30 任务：新增 list 的 presentation.variant（standard/timeline）通用展示能力；在 contract/schema 中接入 presentation 配置与 list item 可选 usage_hint，后端编译链输出 Timeline/TimelineItem（item 内继续复用 Card/Column/Text），并补充 timeline 变体测试。
 - 2026-03-30 任务：仅前端新增 Timeline/TimelineItem 组件并接入 registry，补充时间线样式，打通后端 Timeline 帧到前端的基础展示容器能力（不改后端、不实现额外业务语义）。
+- 2026-03-30 任务：修复 chat_ui_builder 前端 Timeline/TimelineItem 的 A2UI 协议实现；组件改为基于 node/surfaceId 与 node.properties(child/children) 递归渲染，补齐 node.weight 支持，并新增对应设计文档与开发计划。
