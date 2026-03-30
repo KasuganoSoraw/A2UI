@@ -16,6 +16,7 @@ from models import (
     FlowDiagramNode,
     InitPlanDelta,
     AddRegionTextDelta,
+    AppendRegionListItemDelta,
 )
 from skeleton_compiler import SkeletonCompiler
 
@@ -197,3 +198,54 @@ def test_warning_usage_hint_is_preserved_in_compiled_text_component() -> None:
 
   assert warning_components
   assert warning_components[0].component['Text']['usageHint'] == 'warning'
+
+
+def test_list_item_usage_hint_prefers_model_values_with_default_fallback() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='List page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='list_region', role='list', title='Records'))
+
+  hinted_frames = compiler.apply(
+      AppendRegionListItemDelta(
+          event='append_region_list_item',
+          id='item_with_hint',
+          region_id='list_region',
+          title='高优先级记录',
+          detail='需要重点关注',
+          title_usage_hint='warning',
+          detail_usage_hint='caption',
+      )
+  )
+  default_frames = compiler.apply(
+      AppendRegionListItemDelta(
+          event='append_region_list_item',
+          id='item_default_hint',
+          region_id='list_region',
+          title='普通记录',
+          detail='常规补充信息',
+      )
+  )
+
+  hinted_usage_hints: set[str] = set()
+  default_usage_hints: set[str] = set()
+
+  for frame in hinted_frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      text = component.component.get('Text') if isinstance(component.component, dict) else None
+      if text and isinstance(text, dict) and 'usageHint' in text:
+        hinted_usage_hints.add(str(text['usageHint']))
+
+  for frame in default_frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      text = component.component.get('Text') if isinstance(component.component, dict) else None
+      if text and isinstance(text, dict) and 'usageHint' in text:
+        default_usage_hints.add(str(text['usageHint']))
+
+  assert 'warning' in hinted_usage_hints
+  assert 'caption' in hinted_usage_hints
+  assert 'body' in default_usage_hints
+  assert 'caption' in default_usage_hints

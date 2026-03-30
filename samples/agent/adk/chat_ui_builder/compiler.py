@@ -591,7 +591,12 @@ class FrameCompiler:
     )
     title = ComponentNode(
         id=title_id,
-        component={'Text': {'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/title'}, 'usageHint': 'body'}},
+        component={
+            'Text': {
+                'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/title'},
+                'usageHint': delta.title_usage_hint or 'body',
+            }
+        },
     )
     components = [parent_update, wrapper, content, title]
     contents = [DataMapEntry(key='title', valueString=delta.title)]
@@ -599,7 +604,12 @@ class FrameCompiler:
       components.append(
           ComponentNode(
               id=detail_id,
-              component={'Text': {'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/detail'}, 'usageHint': 'caption'}},
+              component={
+                  'Text': {
+                      'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/detail'},
+                      'usageHint': delta.detail_usage_hint or 'caption',
+                  }
+              },
           )
       )
       contents.append(DataMapEntry(key='detail', valueString=delta.detail))

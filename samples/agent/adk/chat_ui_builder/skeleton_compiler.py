@@ -184,6 +184,8 @@ class SkeletonCompiler:
               parent_id=parent_id,
               title=delta.title,
               detail=delta.detail,
+              title_usage_hint=delta.title_usage_hint,
+              detail_usage_hint=delta.detail_usage_hint,
           ),
       )
     if isinstance(delta, AddRegionFlowDiagramDelta):

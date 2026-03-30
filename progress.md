@@ -3,3 +3,4 @@
 - 2026-03-28 任务：A2UI 定位收敛为上游 Agent 结果展示层；重写 planner prompt 的“只展示不编造”约束，新增 source_data/user_query 输入形态，后端增加无动作项时过滤 actions 的最小约束，并更新 API/README 与服务层测试。
 - 2026-03-28 任务：实现日志搜索展示模板 log_search_result_template；新增日志输入判定与模板化 planning delta 生成（概览/时间线/上下文/原始数据），service 接入模板直编译路径，前端增加 source_data JSON 输入与日志示例按钮，并补充模板链路测试。
 - 2026-03-28 任务：完成去场景特化重构；从通用 prompt 移除日志 one-shot 与日志优先模板描述，删除 log_template.py 及 service 调用链，新增通用 warning usage_hint（schema/contract/测试/前端样式），并恢复纯通用 role+archetype 主链。
+- 2026-03-30 任务：增强通用 prompt/planning contract 语义；补充 usage_hint（h1/h2/h3/body/caption/warning）解释，新增 FlowDiagram 通用规则与 one-shot 示例，扩展 list item 的可选 usage_hint 字段并实现“模型优先、后端兜底”透传策略，更新对应测试。

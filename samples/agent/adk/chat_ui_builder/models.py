@@ -91,6 +91,8 @@ class AppendRegionListItemDelta(BaseModel):
   region_id: str
   title: str
   detail: str | None = None
+  title_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
+  detail_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
 
 
 class InitSurfaceDelta(BaseModel):
@@ -212,6 +214,8 @@ class AppendListItemDelta(BaseModel):
   parent_id: str
   title: str
   detail: str | None = None
+  title_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
+  detail_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
 
 
 class FinalizeDelta(BaseModel):
