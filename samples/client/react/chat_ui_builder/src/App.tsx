@@ -2,6 +2,8 @@ import {FormEvent, type Dispatch, type SetStateAction, useCallback, useMemo, use
 import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2ui/react';
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
+import {Timeline} from './components/Timeline';
+import {TimelineItem} from './components/TimelineItem';
 import {cn} from './lib/cn';
 
 const DEFAULT_API_BASE = 'http://localhost:8010';
@@ -29,6 +31,12 @@ const panelClass = {
 const registry = ComponentRegistry.getInstance();
 if (!registry.has('FlowDiagram')) {
   registry.register('FlowDiagram', {component: FlowDiagram});
+}
+if (!registry.has('Timeline')) {
+  registry.register('Timeline', {component: Timeline});
+}
+if (!registry.has('TimelineItem')) {
+  registry.register('TimelineItem', {component: TimelineItem});
 }
 
 interface ShellProps {

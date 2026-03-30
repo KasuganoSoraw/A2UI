@@ -246,6 +246,50 @@ textarea:focus {
   font-weight: 700;
 }
 
+.render-surface .a2ui-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.render-surface .a2ui-timeline-item {
+  position: relative;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.render-surface .a2ui-timeline-item__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid #2563eb;
+  background: #bfdbfe;
+  margin-top: 10px;
+  flex: 0 0 auto;
+}
+
+.render-surface .a2ui-timeline-item__line {
+  position: absolute;
+  left: 5px;
+  top: 24px;
+  width: 2px;
+  bottom: -16px;
+  background: rgba(148, 163, 184, 0.55);
+}
+
+.render-surface .a2ui-timeline-item:last-child .a2ui-timeline-item__line {
+  display: none;
+}
+
+.render-surface .a2ui-timeline-item__content {
+  min-width: 0;
+  flex: 1;
+}
+
 .eyebrow,
 .section-title,
 .status-badge {
