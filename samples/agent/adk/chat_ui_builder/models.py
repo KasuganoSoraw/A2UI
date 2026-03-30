@@ -10,6 +10,10 @@ class Theme(BaseModel):
   font: str | None = None
 
 
+class RegionPresentationConfig(BaseModel):
+  variant: Literal["standard", "timeline"] = "standard"
+
+
 class InitPlanDelta(BaseModel):
   event: Literal["init_plan"]
   surface_id: str = "main"
@@ -28,6 +32,7 @@ class AddRegionDelta(BaseModel):
   title: str | None = None
   description: str | None = None
   importance: Literal["high", "medium", "low"] = "medium"
+  presentation: RegionPresentationConfig | None = None
 
 
 class AddRegionTextDelta(BaseModel):
@@ -107,7 +112,7 @@ class AddSectionDelta(BaseModel):
   event: Literal["add_section"]
   id: str
   parent_id: str
-  layout: Literal["Card", "Column", "Row", "List"]
+  layout: Literal["Card", "Column", "Row", "List", "Timeline"]
   title: str | None = None
   description: str | None = None
   order: int | None = None

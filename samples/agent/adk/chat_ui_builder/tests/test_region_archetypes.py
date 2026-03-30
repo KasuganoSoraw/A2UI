@@ -249,3 +249,39 @@ def test_list_item_usage_hint_prefers_model_values_with_default_fallback() -> No
   assert 'caption' in hinted_usage_hints
   assert 'body' in default_usage_hints
   assert 'caption' in default_usage_hints
+
+
+def test_list_timeline_variant_compiles_to_timeline_and_timeline_item() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Timeline page'))
+  compiler.apply(
+      AddRegionDelta(
+          event='add_region',
+          id='timeline_region',
+          role='list',
+          title='时间线事件',
+          presentation={'variant': 'timeline'},
+      )
+  )
+
+  frames = compiler.apply(
+      AppendRegionListItemDelta(
+          event='append_region_list_item',
+          id='timeline_item',
+          region_id='timeline_region',
+          title='10:32 服务告警',
+          detail='错误率升高至 3.2%',
+      )
+  )
+
+  component_type_by_id: dict[str, set[str]] = {}
+  for frame in frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      component_type_by_id.setdefault(component.id, set()).update(component.component.keys())
+
+  assert 'timeline_region_list_items' in component_type_by_id
+  assert 'Timeline' in component_type_by_id['timeline_region_list_items']
+  assert any('TimelineItem' in component_types for component_types in component_type_by_id.values())
+  assert any('Card' in component_types for component_types in component_type_by_id.values())

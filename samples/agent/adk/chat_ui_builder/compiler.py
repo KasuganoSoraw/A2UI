@@ -170,6 +170,12 @@ class FrameCompiler:
               'alignment': 'stretch',
           }
       }
+    elif container.container_type == 'Timeline':
+      component = {
+          'Timeline': {
+              'children': {'explicitList': explicit_children},
+          }
+      }
     else:
       component = {
           'Column': {
@@ -570,15 +576,31 @@ class FrameCompiler:
     self._append_child(parent_id, wrapper_id)
     parent_update = self._container_component(parent)
     wrapper_children = [title_id] + ([detail_id] if delta.detail else [])
-    wrapper = ComponentNode(
-        id=wrapper_id,
-        component={
-            'Card': {
-                'child': self._helper_id(item_prefix, 'content')
-            }
-        },
-    )
-    content_id = wrapper.component['Card']['child']
+    content_id = self._helper_id(item_prefix, 'content')
+    timeline_card_id = self._helper_id(item_prefix, 'card') if parent.container_type == 'Timeline' else None
+    if parent.container_type == 'Timeline':
+      wrapper = ComponentNode(
+          id=wrapper_id,
+          component={
+              'TimelineItem': {
+                  'child': timeline_card_id,
+              }
+          },
+      )
+    else:
+      wrapper = ComponentNode(
+          id=wrapper_id,
+          component={
+              'Card': {
+                  'child': content_id
+              }
+          },
+      )
+
+    item_surface_components = [parent_update, wrapper]
+    if timeline_card_id:
+      item_surface_components.append(ComponentNode(id=timeline_card_id, component={'Card': {'child': content_id}}))
+
     content = ComponentNode(
         id=content_id,
         component={
@@ -598,7 +620,7 @@ class FrameCompiler:
             }
         },
     )
-    components = [parent_update, wrapper, content, title]
+    components = item_surface_components + [content, title]
     contents = [DataMapEntry(key='title', valueString=delta.title)]
     if delta.detail:
       components.append(

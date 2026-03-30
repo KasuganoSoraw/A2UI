@@ -26,6 +26,7 @@ class RegionBuildContext:
   emphasis: str
   layout_hint: str
   arrangement: ArrangementSemantics
+  presentation_variant: str = 'standard'
 
 
 @dataclass
@@ -282,12 +283,13 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
     actions_id = f'{region_id}_{context.arrangement.actions}'
+    list_layout = 'Timeline' if context.presentation_variant == 'timeline' else 'List'
     return self._base_region(
         context,
         emit,
         include_body_slot=False,
         slot_specs=[
-            SlotSpec(name='list_item', section_id=f'{region_id}_list_items', layout='List', order=30),
+            SlotSpec(name='list_item', section_id=f'{region_id}_list_items', layout=list_layout, order=30),
             SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},

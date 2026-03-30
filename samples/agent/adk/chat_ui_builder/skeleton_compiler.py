@@ -383,6 +383,7 @@ class SkeletonCompiler:
         emphasis=self.emphasis,
         layout_hint=self.layout_hint,
         arrangement=self._arrangement_for(delta),
+        presentation_variant=delta.presentation.variant if delta.presentation else 'standard',
     )
     result = builder.build(context, self._apply_low_level)
     self.regions[delta.id] = RegionBinding(

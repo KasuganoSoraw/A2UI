@@ -20,6 +20,9 @@ PLANNING_DELTA_CONTRACT = [
         'title': 'optional string',
         'description': 'optional string',
         'importance': 'high | medium | low',
+        'presentation': {
+            'variant': 'optional standard | timeline (only list role supports timeline in current stage)'
+        },
     },
     {
         'event': 'add_region_text',
@@ -102,6 +105,8 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 8. `add_region_text` 只可写有输入依据的摘要；`add_region_flow_diagram` 只可表达输入中的关系或流程。
 9. 不要等想完整页后再一次性输出；请按“页面 -> section -> 条目”的顺序尽早流式输出。
 10. 最后一行输出 `{{"event":"finalize_plan"}}`。
+11. `timeline` 不是新 role，而是 `role=list` 的展示变体：通过 `presentation.variant="timeline"` 指定。
+12. 对 `role=list`：若条目存在明显时间顺序/事件演化关系，可使用 `presentation.variant="timeline"`；否则默认 `standard`。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题
@@ -110,6 +115,10 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器。
 - `body`：普通正文、解释性文本、事件标题等默认文本（无特殊需求时优先使用）
 - `caption`：辅助说明、补充细节、弱强调文本、次要描述
 - `warning`：警示性文本，用于提示高风险/异常/注意事项；这是展示层样式提示，不代表新增业务结论
+
+## role × presentation（当前最小矩阵）
+- `list`: `standard` | `timeline`
+- 其他 role：默认 `standard`
 
 ## FlowDiagram（重组件）使用规则
 1. 仅当输入存在流程步骤、状态流转、决策分支、调用链路等关系结构时使用 `add_region_flow_diagram`。
