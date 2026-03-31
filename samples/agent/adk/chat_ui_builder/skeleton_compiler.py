@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Callable, Literal
+from typing import Callable
 
 from compiler import FrameCompiler
 from models import (
@@ -44,9 +44,6 @@ BUCKET_ORDER = {
     'actions_bucket': 80,
 }
 
-BucketContext = Literal['main']
-
-
 @dataclass
 class PendingRegionDelta:
   slot_name: str
@@ -68,9 +65,7 @@ class RegionBinding:
 
 @dataclass
 class LayoutRecipe:
-  parent: str
   role_slots: dict[str, str]
-  bucket_context: dict[str, BucketContext]
 
 
 class SkeletonCompiler:
@@ -82,7 +77,6 @@ class SkeletonCompiler:
     self.page_kind = 'overview'
     self.emphasis = 'balanced'
     self.role_slots: dict[str, str] = {}
-    self.bucket_context: dict[str, BucketContext] = {}
     self.regions: dict[str, RegionBinding] = {}
     self.pending_region_deltas: dict[str, list[PendingRegionDelta]] = {}
     self.flow_region_overrides: dict[str, str] = {}
@@ -219,7 +213,6 @@ class SkeletonCompiler:
     self.page_kind = delta.page_kind
     self.emphasis = delta.emphasis
     self.role_slots = {}
-    self.bucket_context = {}
     self.regions = {}
     self.pending_region_deltas = {}
     self.flow_region_overrides = {}
@@ -242,12 +235,10 @@ class SkeletonCompiler:
     recipe = self._layout_recipe()
     frames: list[A2UIFrame] = []
     self.role_slots = recipe.role_slots
-    self.bucket_context = recipe.bucket_context
     logger.info(
-        'Initialized layout scaffold=%s role_slots=%s bucket_context=%s',
+        'Initialized layout scaffold=%s role_slots=%s',
         self.layout_hint,
         self.role_slots,
-        self.bucket_context,
     )
     return frames
 
@@ -266,49 +257,7 @@ class SkeletonCompiler:
         'supporting': 'supporting_bucket',
         'actions': 'actions_bucket',
     }
-    bucket_context: dict[str, BucketContext] = {
-        'hero_bucket': 'main',
-        'summary_bucket': 'main',
-        'details_bucket': 'main',
-        'workflow_bucket': 'main',
-        'form_bucket': 'main',
-        'list_bucket': 'main',
-        'supporting_bucket': 'main',
-        'actions_bucket': 'main',
-    }
-
-    return LayoutRecipe(
-        parent='root',
-        role_slots=role_slots,
-        bucket_context=bucket_context,
-    )
-
-  def _build_role_buckets(self, recipe: LayoutRecipe) -> list[A2UIFrame]:
-    bucket_parents = {
-        'hero_bucket': recipe.parent,
-        'summary_bucket': recipe.parent,
-        'details_bucket': recipe.parent,
-        'workflow_bucket': recipe.parent,
-        'form_bucket': recipe.parent,
-        'list_bucket': recipe.parent,
-        'supporting_bucket': recipe.parent,
-        'actions_bucket': recipe.parent,
-    }
-
-    frames: list[A2UIFrame] = []
-    for bucket_id, parent_id in bucket_parents.items():
-      frames.extend(
-          self._apply_low_level(
-              AddSectionDelta(
-                  event='add_section',
-                  id=bucket_id,
-                  parent_id=parent_id,
-                  layout='Column',
-                  order=self._bucket_order(bucket_id),
-              )
-          )
-      )
-    return frames
+    return LayoutRecipe(role_slots=role_slots)
 
   def _bucket_order(self, bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
@@ -322,20 +271,24 @@ class SkeletonCompiler:
     normalized_title = self._normalize_text(self.page_title)
     if not normalized_text or not normalized_title:
       return False
-    return normalized_text in normalized_title or normalized_title in normalized_text
+    if normalized_text == normalized_title:
+      return True
+    shorter, longer = sorted((normalized_text, normalized_title), key=len)
+    if shorter and shorter in longer:
+      overlap_ratio = len(shorter) / len(longer)
+      return overlap_ratio >= 0.9
+    return False
 
   def _ensure_bucket_for_role(self, role: str) -> list[A2UIFrame]:
     bucket_id = self.role_slots.get(role)
     if not bucket_id or bucket_id == 'root' or bucket_id in self.created_buckets:
       return []
 
-    parent_context = self.bucket_context.get(bucket_id, 'main')
-    parent_id = 'root' if parent_context == 'main' else 'root'
     frames = self._apply_low_level(
         AddSectionDelta(
             event='add_section',
             id=bucket_id,
-            parent_id=parent_id,
+            parent_id='root',
             layout='Column',
             order=self._bucket_order(bucket_id),
         )
@@ -348,7 +301,6 @@ class SkeletonCompiler:
       if self._is_title_overlap(delta.text):
         logger.info('Dropping duplicate hero h1 text region=%s text=%s', binding.region_id, delta.text)
         return None
-      return delta.model_copy(update={'usage_hint': 'h2'})
     return delta
 
   def _resolve_text_delta(self, delta: AddRegionTextDelta) -> AddTextDelta:

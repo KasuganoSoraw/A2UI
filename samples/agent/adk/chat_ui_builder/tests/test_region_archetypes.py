@@ -318,7 +318,7 @@ def test_bucket_is_created_on_first_region_use_only() -> None:
 
 
 
-def test_hero_h1_is_deduplicated_or_downgraded_against_page_title() -> None:
+def test_hero_h1_fallback_only_removes_near_duplicate_title() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='系统健康概览'))
   compiler.apply(AddRegionDelta(event='add_region', id='hero_region', role='hero', title='核心状态'))
@@ -335,23 +335,23 @@ def test_hero_h1_is_deduplicated_or_downgraded_against_page_title() -> None:
   duplicate_ids = _slot_component_ids(duplicate_frames)
   assert 'hero_duplicate_h1' not in duplicate_ids
 
-  downgraded_frames = compiler.apply(
+  preserved_frames = compiler.apply(
       AddRegionTextDelta(
           event='add_region_text',
-          id='hero_unique_h1',
+          id='hero_distinct_h1',
           region_id='hero_region',
           text='关键风险与趋势',
           usage_hint='h1',
       )
   )
 
-  downgraded_component = None
-  for frame in downgraded_frames:
+  preserved_component = None
+  for frame in preserved_frames:
     if not frame.surfaceUpdate:
       continue
     for component in frame.surfaceUpdate.components:
-      if component.id == 'hero_unique_h1':
-        downgraded_component = component
+      if component.id == 'hero_distinct_h1':
+        preserved_component = component
 
-  assert downgraded_component is not None
-  assert downgraded_component.component['Text']['usageHint'] == 'h2'
+  assert preserved_component is not None
+  assert preserved_component.component['Text']['usageHint'] == 'h1'
