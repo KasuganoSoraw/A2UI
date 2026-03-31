@@ -12,11 +12,13 @@ from models import (
     AddRegionDelta,
     AddRegionFactDelta,
     AddRegionFlowDiagramDelta,
+    AddRegionTableDelta,
     FlowDiagramEdge,
     FlowDiagramNode,
     InitPlanDelta,
     AddRegionTextDelta,
     AppendRegionListItemDelta,
+    SKELETON_DELTA_ADAPTER,
 )
 from skeleton_compiler import SkeletonCompiler
 
@@ -355,3 +357,113 @@ def test_hero_h1_fallback_only_removes_near_duplicate_title() -> None:
 
   assert preserved_component is not None
   assert preserved_component.component['Text']['usageHint'] == 'h1'
+
+
+def test_add_region_table_schema_can_be_parsed() -> None:
+  parsed = SKELETON_DELTA_ADAPTER.validate_python(
+      {
+          'event': 'add_region_table',
+          'id': 'users_table',
+          'region_id': 'details_region',
+          'columns': [
+              {'key': 'date', 'label': '日期'},
+              {'key': 'name', 'label': '姓名', 'align': 'center'},
+          ],
+          'rows': [
+              {'date': '2016/05/02', 'name': '王小虎'},
+          ],
+      }
+  )
+
+  assert isinstance(parsed, AddRegionTableDelta)
+  assert parsed.columns[0].key == 'date'
+  assert parsed.rows[0]['name'] == '王小虎'
+
+
+def test_add_region_table_routes_to_default_text_slot_and_emits_table_component() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Table page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='详情'))
+
+  frames = compiler.apply(
+      AddRegionTableDelta(
+          event='add_region_table',
+          id='user_table',
+          region_id='details_region',
+          columns=[
+              {'key': 'date', 'label': '日期'},
+              {'key': 'name', 'label': '姓名'},
+          ],
+          rows=[
+              {'date': '2016/05/02', 'name': '王小虎'},
+              {'date': '2016/05/04', 'name': '王小虎'},
+          ],
+          title='用户表',
+          row_key='date',
+          striped=True,
+          bordered=True,
+      )
+  )
+
+  component_by_id: dict[str, object] = {}
+  table_spec_string = None
+  for frame in frames:
+    if frame.surfaceUpdate:
+      for component in frame.surfaceUpdate.components:
+        component_by_id[component.id] = component.component
+    if frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/user_table':
+      for entry in frame.dataModelUpdate.contents:
+        if entry.key == 'spec':
+          table_spec_string = entry.valueString
+
+  assert 'user_table' in component_by_id
+  assert component_by_id['user_table']['Table']['spec']['path'] == '/content/user_table/spec'
+  assert table_spec_string is not None
+  assert '"columns"' in table_spec_string
+  assert '"rows"' in table_spec_string
+
+
+def test_add_region_table_can_coexist_with_text_and_fact_in_same_region() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Mixed details page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='详情'))
+
+  frames = []
+  frames.extend(
+      compiler.apply(
+          AddRegionTextDelta(
+              event='add_region_text',
+              id='details_text',
+              region_id='details_region',
+              text='本周明细如下',
+              usage_hint='body',
+          )
+      )
+  )
+  frames.extend(
+      compiler.apply(
+          AddRegionFactDelta(
+              event='add_region_fact',
+              id='details_fact',
+              region_id='details_region',
+              label='总条数',
+              value='2',
+          )
+      )
+  )
+  frames.extend(
+      compiler.apply(
+          AddRegionTableDelta(
+              event='add_region_table',
+              id='details_table',
+              region_id='details_region',
+              columns=[{'key': 'name', 'label': '姓名'}],
+              rows=[{'name': '王小虎'}],
+          )
+      )
+  )
+
+  component_ids = _slot_component_ids(frames)
+  assert 'details_text' in component_ids
+  assert 'details_fact' in component_ids
+  assert 'details_table' in component_ids

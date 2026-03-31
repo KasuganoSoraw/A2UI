@@ -14,6 +14,7 @@ from models import (
     AddInputDelta,
     AddKeyValueDelta,
     AddSectionDelta,
+    AddTableDelta,
     AddTextDelta,
     AppendListItemDelta,
     ComponentNode,
@@ -65,6 +66,8 @@ class FrameCompiler:
       return self._add_input(delta)
     if isinstance(delta, AddDividerDelta):
       return self._add_divider(delta)
+    if isinstance(delta, AddTableDelta):
+      return self._add_table(delta)
     if isinstance(delta, AppendListItemDelta):
       return self._append_list_item(delta)
     return []
@@ -484,6 +487,23 @@ class FrameCompiler:
             f'/content/{diagram_id}',
             [DataMapEntry(key='spec', valueString=spec_json)],
         ),
+    ]
+
+  def _add_table(self, delta: AddTableDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'details', '结构化数据')
+    parent = self._ensure_container(parent_id)
+    table_id = self._register_id(delta.id)
+    if table_id == parent.component_id:
+      raise ValueError(f'Table id {table_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, table_id)
+    parent_update = self._container_component(parent)
+    table_component = ComponentNode(
+        id=table_id,
+        component={'Table': {'spec': {'path': f'/content/{table_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, table_component]),
+        self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:

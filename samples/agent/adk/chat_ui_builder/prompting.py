@@ -65,6 +65,17 @@ PLANNING_DELTA_CONTRACT = [
         'detail_usage_hint': 'optional h1 | h2 | h3 | body | caption | warning',
     },
     {
+        'event': 'add_region_table',
+        'id': 'string',
+        'region_id': 'string',
+        'columns': 'list of {key,label,width?,align?(left|center|right),ellipsis?}',
+        'rows': 'list of row objects keyed by column key',
+        'title': 'optional string',
+        'row_key': 'optional string',
+        'striped': 'optional boolean',
+        'bordered': 'optional boolean',
+    },
+    {
         'event': 'add_region_flow_diagram',
         'id': 'string',
         'region_id': 'string',
@@ -142,6 +153,9 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 12. 最后一行必须输出 `{{"event":"finalize_plan"}}`。
 13. `timeline` 不是新 role，而是 `role=list` 的展示变体：通过 `presentation.variant="timeline"` 指定。
 14. 对 `role=list`：存在明显时间顺序/事件演化时使用 `timeline`；否则使用 `standard`。
+15. `add_region_table` 是内容事件，不是新的 role，也不是新的 presentation/layout。
+16. `add_region_table` 适用于 `details / summary / supporting / insights` 中的二维结构化记录展示；不适用于 `workflow / form / actions`。
+17. 当输入是多行多列结构化数据且用户需要逐行比较时，优先使用 `add_region_table`，不要把整表改写成长段文本。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题

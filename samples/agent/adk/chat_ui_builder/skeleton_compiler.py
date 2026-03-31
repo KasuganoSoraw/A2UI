@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from dataclasses import dataclass, field
 from typing import Callable
@@ -21,7 +22,9 @@ from models import (
     AddRegionImageDelta,
     AddRegionInputDelta,
     AddRegionTextDelta,
+    AddRegionTableDelta,
     AddSectionDelta,
+    AddTableDelta,
     AddTextDelta,
     AppendListItemDelta,
     AppendRegionListItemDelta,
@@ -96,6 +99,26 @@ class SkeletonCompiler:
           delta.region_id,
           'text',
           lambda parent_id: resolved.model_copy(update={'parent_id': parent_id}),
+      )
+    if isinstance(delta, AddRegionTableDelta):
+      table_spec = {
+          'title': delta.title,
+          'columns': [column.model_dump(exclude_none=True) for column in delta.columns],
+          'rows': delta.rows,
+          'row_key': delta.row_key,
+          'striped': delta.striped,
+          'bordered': delta.bordered,
+      }
+      table_spec_json = json.dumps(table_spec, ensure_ascii=False)
+      return self._apply_region_delta(
+          delta.region_id,
+          'text',
+          lambda parent_id: AddTableDelta(
+              event='add_table',
+              id=delta.id,
+              parent_id=parent_id,
+              spec_json=table_spec_json,
+          ),
       )
     if isinstance(delta, AddRegionFactDelta):
       return self._apply_region_delta(

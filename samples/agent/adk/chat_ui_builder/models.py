@@ -100,6 +100,26 @@ class AppendRegionListItemDelta(BaseModel):
   detail_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
 
 
+class TableColumnSpec(BaseModel):
+  key: str
+  label: str
+  width: str | None = None
+  align: Literal["left", "center", "right"] | None = None
+  ellipsis: bool | None = None
+
+
+class AddRegionTableDelta(BaseModel):
+  event: Literal["add_region_table"]
+  id: str
+  region_id: str
+  columns: list[TableColumnSpec]
+  rows: list[dict[str, str | int | float | bool | None]]
+  title: str | None = None
+  row_key: str | None = None
+  striped: bool | None = None
+  bordered: bool | None = None
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -174,6 +194,13 @@ class AddFlowDiagramDelta(BaseModel):
   edges: list[FlowDiagramEdge]
 
 
+class AddTableDelta(BaseModel):
+  event: Literal["add_table"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -237,6 +264,7 @@ SkeletonDelta = Annotated[
     | AddRegionInputDelta
     | AddRegionDividerDelta
     | AppendRegionListItemDelta
+    | AddRegionTableDelta
     | AddRegionFlowDiagramDelta
     | FinalizeDelta,
     Field(discriminator="event"),
@@ -253,6 +281,7 @@ Delta = Annotated[
     | AddImageDelta
     | AddButtonDelta
     | AddFlowDiagramDelta
+    | AddTableDelta
     | AddInputDelta
     | AddDividerDelta
     | AppendListItemDelta

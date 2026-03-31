@@ -10,3 +10,4 @@
 - 2026-03-30 任务：重写 chat_ui_builder 的 SYSTEM_PROMPT 为“展示编排器”定位；强化只展示不编造边界，调整 raw/evidence 为按需展示，保留 usage_hint、list.timeline、FlowDiagram 规则与 one-shot。
 - 2026-03-31 任务：调整业务骨架生成策略为 role bucket 懒创建（取消 init_plan 后全量空 bucket 预创建），并新增 hero 文本与页面标题的 h1 去重/降级规则，补充对应测试用例。
 - 2026-03-31 任务：将页面标题层级主约束前移到 SYSTEM_PROMPT（页面唯一 h1、hero 职责与 role 语义），后端 hero h1 改为仅明显重复时轻量去重；同时删除 skeleton_compiler 中无用 `_build_role_buckets` 并简化 bucket parent 逻辑。
+- 2026-03-31 任务：为 chat_ui_builder 接入 add_region_table 全链路；新增 table planning/low-level schema，Skeleton 复用 text 默认落点编译 AddTableDelta，FrameCompiler 输出 Table(spec.path) 并写入 spec_json，补充 contract 文案与表格链路测试。
