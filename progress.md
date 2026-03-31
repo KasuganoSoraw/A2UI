@@ -11,3 +11,4 @@
 - 2026-03-31 任务：调整业务骨架生成策略为 role bucket 懒创建（取消 init_plan 后全量空 bucket 预创建），并新增 hero 文本与页面标题的 h1 去重/降级规则，补充对应测试用例。
 - 2026-03-31 任务：将页面标题层级主约束前移到 SYSTEM_PROMPT（页面唯一 h1、hero 职责与 role 语义），后端 hero h1 改为仅明显重复时轻量去重；同时删除 skeleton_compiler 中无用 `_build_role_buckets` 并简化 bucket parent 逻辑。
 - 2026-03-31 任务：为 chat_ui_builder 接入 add_region_table 全链路；新增 table planning/low-level schema，Skeleton 复用 text 默认落点编译 AddTableDelta，FrameCompiler 输出 Table(spec.path) 并写入 spec_json，补充 contract 文案与表格链路测试。
+- 2026-03-31 任务：前端新增 Table 组件并注册到 App registry；按 spec.path 读取并解析后端 valueString(JSON) 表格 spec，使用原生 HTML table 渲染，补充最小 table 样式与空态/异常降级处理。

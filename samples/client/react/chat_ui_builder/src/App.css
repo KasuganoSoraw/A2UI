@@ -614,3 +614,81 @@ textarea {
     flex-direction: column;
   }
 }
+
+.render-surface .a2ui-table {
+  width: 100%;
+}
+
+.render-surface .a2ui-table-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.render-surface .a2ui-table-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #303133;
+}
+
+.render-surface .a2ui-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.render-surface .a2ui-table-element {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.render-surface .a2ui-table-element th,
+.render-surface .a2ui-table-element td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #ebeef5;
+  color: #303133;
+  vertical-align: top;
+}
+
+.render-surface .a2ui-table-element th {
+  font-weight: 600;
+  background: #f8fafc;
+}
+
+.render-surface .a2ui-table-element.is-striped tbody tr:nth-child(odd) {
+  background: rgba(248, 250, 252, 0.8);
+}
+
+.render-surface .a2ui-table-element.is-bordered th,
+.render-surface .a2ui-table-element.is-bordered td {
+  border: 1px solid #e5e7eb;
+}
+
+.render-surface .a2ui-table-element .is-align-left {
+  text-align: left;
+}
+
+.render-surface .a2ui-table-element .is-align-center {
+  text-align: center;
+}
+
+.render-surface .a2ui-table-element .is-align-right {
+  text-align: right;
+}
+
+.render-surface .a2ui-table-element .is-ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.render-surface .a2ui-table-empty {
+  color: #909399;
+  text-align: center;
+  padding: 14px 8px;
+}
