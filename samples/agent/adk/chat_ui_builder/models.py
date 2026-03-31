@@ -120,6 +120,24 @@ class AddRegionTableDelta(BaseModel):
   bordered: bool | None = None
 
 
+class LineChartSettings(BaseModel):
+  dimension: str
+  xTitle: str | None = None
+  yTitle: str | None = None
+  metrics: list[str]
+  markPoint: bool | None = None
+
+
+class AddRegionLineChartDelta(BaseModel):
+  event: Literal["add_region_line_chart"]
+  id: str
+  region_id: str
+  title: str | None = None
+  width: str | None = None
+  settings: LineChartSettings
+  chart_data: list[dict[str, str | int | float | bool | None]]
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -201,6 +219,13 @@ class AddTableDelta(BaseModel):
   spec_json: str
 
 
+class AddLineChartDelta(BaseModel):
+  event: Literal["add_line_chart"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -265,6 +290,7 @@ SkeletonDelta = Annotated[
     | AddRegionDividerDelta
     | AppendRegionListItemDelta
     | AddRegionTableDelta
+    | AddRegionLineChartDelta
     | AddRegionFlowDiagramDelta
     | FinalizeDelta,
     Field(discriminator="event"),
@@ -282,6 +308,7 @@ Delta = Annotated[
     | AddButtonDelta
     | AddFlowDiagramDelta
     | AddTableDelta
+    | AddLineChartDelta
     | AddInputDelta
     | AddDividerDelta
     | AppendListItemDelta

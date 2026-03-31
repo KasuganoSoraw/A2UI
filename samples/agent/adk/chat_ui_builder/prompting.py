@@ -76,6 +76,21 @@ PLANNING_DELTA_CONTRACT = [
         'bordered': 'optional boolean',
     },
     {
+        'event': 'add_region_line_chart',
+        'id': 'string',
+        'region_id': 'string',
+        'title': 'optional string',
+        'width': 'optional string, e.g. 100% | 600px',
+        'settings': {
+            'dimension': 'string',
+            'xTitle': 'optional string',
+            'yTitle': 'optional string',
+            'metrics': 'list[string]',
+            'markPoint': 'optional boolean',
+        },
+        'chart_data': 'list of row objects; each row contains the dimension field and metric fields',
+    },
+    {
         'event': 'add_region_flow_diagram',
         'id': 'string',
         'region_id': 'string',
@@ -156,6 +171,9 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 15. `add_region_table` 是内容事件，不是新的 role，也不是新的 presentation/layout。
 16. `add_region_table` 适用于 `details / summary / supporting / insights` 中的二维结构化记录展示；不适用于 `workflow / form / actions`。
 17. 当输入是多行多列结构化数据且用户需要逐行比较时，优先使用 `add_region_table`，不要把整表改写成长段文本。
+18. `add_region_line_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
+19. `add_region_line_chart` 适用于 `summary / details / insights / supporting`；不适用于 `workflow / form / actions`。
+20. 当输入主要是数值随时间或类别变化趋势时，优先使用 `add_region_line_chart`，不要把明显趋势数据改写成长段文本。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题

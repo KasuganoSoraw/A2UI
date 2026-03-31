@@ -13,6 +13,7 @@ from models import (
     AddImageDelta,
     AddInputDelta,
     AddKeyValueDelta,
+    AddLineChartDelta,
     AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
@@ -68,6 +69,8 @@ class FrameCompiler:
       return self._add_divider(delta)
     if isinstance(delta, AddTableDelta):
       return self._add_table(delta)
+    if isinstance(delta, AddLineChartDelta):
+      return self._add_line_chart(delta)
     if isinstance(delta, AppendListItemDelta):
       return self._append_list_item(delta)
     return []
@@ -504,6 +507,23 @@ class FrameCompiler:
     return prefix_frames + [
         self._surface_update([parent_update, table_component]),
         self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_line_chart(self, delta: AddLineChartDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'insights', '趋势图')
+    parent = self._ensure_container(parent_id)
+    chart_id = self._register_id(delta.id)
+    if chart_id == parent.component_id:
+      raise ValueError(f'Line chart id {chart_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, chart_id)
+    parent_update = self._container_component(parent)
+    chart_component = ComponentNode(
+        id=chart_id,
+        component={'LineChart': {'spec': {'path': f'/content/{chart_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, chart_component]),
+        self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:

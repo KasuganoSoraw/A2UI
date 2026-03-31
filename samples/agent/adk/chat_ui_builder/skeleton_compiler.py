@@ -21,8 +21,10 @@ from models import (
     AddRegionFlowDiagramDelta,
     AddRegionImageDelta,
     AddRegionInputDelta,
+    AddRegionLineChartDelta,
     AddRegionTextDelta,
     AddRegionTableDelta,
+    AddLineChartDelta,
     AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
@@ -118,6 +120,24 @@ class SkeletonCompiler:
               id=delta.id,
               parent_id=parent_id,
               spec_json=table_spec_json,
+          ),
+      )
+    if isinstance(delta, AddRegionLineChartDelta):
+      chart_spec = {
+          'title': delta.title,
+          'width': delta.width,
+          'settings': delta.settings.model_dump(exclude_none=True),
+          'chartData': delta.chart_data,
+      }
+      chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
+      return self._apply_region_delta(
+          delta.region_id,
+          'text',
+          lambda parent_id: AddLineChartDelta(
+              event='add_line_chart',
+              id=delta.id,
+              parent_id=parent_id,
+              spec_json=chart_spec_json,
           ),
       )
     if isinstance(delta, AddRegionFactDelta):

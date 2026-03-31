@@ -12,6 +12,7 @@ from models import (
     AddRegionDelta,
     AddRegionFactDelta,
     AddRegionFlowDiagramDelta,
+    AddRegionLineChartDelta,
     AddRegionTableDelta,
     FlowDiagramEdge,
     FlowDiagramNode,
@@ -467,3 +468,76 @@ def test_add_region_table_can_coexist_with_text_and_fact_in_same_region() -> Non
   assert 'details_text' in component_ids
   assert 'details_fact' in component_ids
   assert 'details_table' in component_ids
+
+
+def test_add_region_line_chart_schema_can_be_parsed() -> None:
+  parsed = SKELETON_DELTA_ADAPTER.validate_python(
+      {
+          'event': 'add_region_line_chart',
+          'id': 'weekly_trend',
+          'region_id': 'summary_region',
+          'title': '周趋势',
+          'width': '100%',
+          'settings': {
+              'dimension': 'day',
+              'metrics': ['Email', 'Union Ads'],
+              'xTitle': '日期',
+              'yTitle': '数量',
+              'markPoint': True,
+          },
+          'chart_data': [
+              {'day': 'Mon', 'Email': 10, 'Union Ads': 5},
+              {'day': 'Tue', 'Email': 20, 'Union Ads': 15},
+          ],
+      }
+  )
+
+  assert isinstance(parsed, AddRegionLineChartDelta)
+  assert parsed.settings.dimension == 'day'
+  assert parsed.chart_data[0]['Email'] == 10
+
+
+def test_add_region_line_chart_routes_and_emits_line_chart_component() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Line chart page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='summary_region', role='summary', title='趋势摘要'))
+
+  frames = compiler.apply(
+      AddRegionLineChartDelta(
+          event='add_region_line_chart',
+          id='weekly_trend',
+          region_id='summary_region',
+          title='周趋势',
+          width='100%',
+          settings={
+              'dimension': 'day',
+              'metrics': ['Email', 'Union Ads'],
+              'xTitle': '日期',
+              'yTitle': '数量',
+              'markPoint': True,
+          },
+          chart_data=[
+              {'day': 'Mon', 'Email': 10, 'Union Ads': 5},
+              {'day': 'Tue', 'Email': 20, 'Union Ads': 15},
+          ],
+      )
+  )
+
+  component_by_id: dict[str, object] = {}
+  chart_spec_string = None
+  for frame in frames:
+    if frame.surfaceUpdate:
+      for component in frame.surfaceUpdate.components:
+        component_by_id[component.id] = component.component
+    if frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/weekly_trend':
+      for entry in frame.dataModelUpdate.contents:
+        if entry.key == 'spec':
+          chart_spec_string = entry.valueString
+
+  assert 'weekly_trend' in component_by_id
+  assert component_by_id['weekly_trend']['LineChart']['spec']['path'] == '/content/weekly_trend/spec'
+  assert chart_spec_string is not None
+  assert '"title": "周趋势"' in chart_spec_string
+  assert '"width": "100%"' in chart_spec_string
+  assert '"settings"' in chart_spec_string
+  assert '"chartData"' in chart_spec_string
