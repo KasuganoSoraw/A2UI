@@ -86,6 +86,8 @@ class SkeletonCompiler:
     self.regions: dict[str, RegionBinding] = {}
     self.pending_region_deltas: dict[str, list[PendingRegionDelta]] = {}
     self.flow_region_overrides: dict[str, str] = {}
+    self.created_buckets: set[str] = set()
+    self.page_title: str = ''
 
   def apply(self, delta: object) -> list[A2UIFrame]:
     payload = delta.model_dump() if hasattr(delta, 'model_dump') else delta
@@ -95,16 +97,11 @@ class SkeletonCompiler:
     if isinstance(delta, AddRegionDelta):
       return self._add_region(delta)
     if isinstance(delta, AddRegionTextDelta):
+      resolved = self._resolve_text_delta(delta)
       return self._apply_region_delta(
           delta.region_id,
           'text',
-          lambda parent_id: AddTextDelta(
-              event='add_text',
-              id=delta.id,
-              parent_id=parent_id,
-              text=delta.text,
-              usage_hint=delta.usage_hint,
-          ),
+          lambda parent_id: resolved.model_copy(update={'parent_id': parent_id}),
       )
     if isinstance(delta, AddRegionFactDelta):
       return self._apply_region_delta(
@@ -226,6 +223,8 @@ class SkeletonCompiler:
     self.regions = {}
     self.pending_region_deltas = {}
     self.flow_region_overrides = {}
+    self.created_buckets = set()
+    self.page_title = delta.title
 
     frames = self._apply_low_level(
         InitSurfaceDelta(
@@ -242,7 +241,6 @@ class SkeletonCompiler:
   def _build_layout_scaffold(self) -> list[A2UIFrame]:
     recipe = self._layout_recipe()
     frames: list[A2UIFrame] = []
-    frames.extend(self._build_role_buckets(recipe))
     self.role_slots = recipe.role_slots
     self.bucket_context = recipe.bucket_context
     logger.info(
@@ -315,6 +313,53 @@ class SkeletonCompiler:
   def _bucket_order(self, bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
 
+  @staticmethod
+  def _normalize_text(value: str) -> str:
+    return ''.join(ch.lower() for ch in value if ch.isalnum())
+
+  def _is_title_overlap(self, text: str) -> bool:
+    normalized_text = self._normalize_text(text)
+    normalized_title = self._normalize_text(self.page_title)
+    if not normalized_text or not normalized_title:
+      return False
+    return normalized_text in normalized_title or normalized_title in normalized_text
+
+  def _ensure_bucket_for_role(self, role: str) -> list[A2UIFrame]:
+    bucket_id = self.role_slots.get(role)
+    if not bucket_id or bucket_id == 'root' or bucket_id in self.created_buckets:
+      return []
+
+    parent_context = self.bucket_context.get(bucket_id, 'main')
+    parent_id = 'root' if parent_context == 'main' else 'root'
+    frames = self._apply_low_level(
+        AddSectionDelta(
+            event='add_section',
+            id=bucket_id,
+            parent_id=parent_id,
+            layout='Column',
+            order=self._bucket_order(bucket_id),
+        )
+    )
+    self.created_buckets.add(bucket_id)
+    return frames
+
+  def _coerce_text_for_binding(self, binding: RegionBinding, delta: AddTextDelta) -> AddTextDelta | None:
+    if binding.role == 'hero' and delta.usage_hint == 'h1':
+      if self._is_title_overlap(delta.text):
+        logger.info('Dropping duplicate hero h1 text region=%s text=%s', binding.region_id, delta.text)
+        return None
+      return delta.model_copy(update={'usage_hint': 'h2'})
+    return delta
+
+  def _resolve_text_delta(self, delta: AddRegionTextDelta) -> AddTextDelta:
+    return AddTextDelta(
+        event='add_text',
+        id=delta.id,
+        parent_id='',
+        text=delta.text,
+        usage_hint=delta.usage_hint,
+    )
+
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
     role_defaults: dict[str, ArrangementSemantics] = {
         'hero': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
@@ -375,6 +420,8 @@ class SkeletonCompiler:
     if delta.id in self.regions:
       raise ValueError(f'Duplicate region id: {delta.id}')
 
+    frames = self._ensure_bucket_for_role(delta.role)
+
     builder = self.archetypes.builder_for(delta.role)
     context = RegionBuildContext(
         slot_parent=self._slot_for_role(delta.role),
@@ -394,7 +441,7 @@ class SkeletonCompiler:
         importance=delta.importance,
         slot_parents=result.slot_parents,
     )
-    frames = list(result.frames)
+    frames.extend(result.frames)
     frames.extend(self._flush_pending_region_deltas(delta.id))
     return frames
 
@@ -411,14 +458,24 @@ class SkeletonCompiler:
       )
       return []
     binding = self.regions[region_id]
-    return self._apply_low_level(delta_builder(binding.parent_for(slot_name)))
+    low_level_delta = delta_builder(binding.parent_for(slot_name))
+    if isinstance(low_level_delta, AddTextDelta):
+      low_level_delta = self._coerce_text_for_binding(binding, low_level_delta)
+      if low_level_delta is None:
+        return []
+    return self._apply_low_level(low_level_delta)
 
   def _flush_pending_region_deltas(self, region_id: str) -> list[A2UIFrame]:
     binding = self.regions[region_id]
     queued = self.pending_region_deltas.pop(region_id, [])
     frames: list[A2UIFrame] = []
     for item in queued:
-      frames.extend(self._apply_low_level(item.delta_builder(binding.parent_for(item.slot_name))))
+      low_level_delta = item.delta_builder(binding.parent_for(item.slot_name))
+      if isinstance(low_level_delta, AddTextDelta):
+        low_level_delta = self._coerce_text_for_binding(binding, low_level_delta)
+        if low_level_delta is None:
+          continue
+      frames.extend(self._apply_low_level(low_level_delta))
     return frames
 
   def _finalize(self) -> list[A2UIFrame]:

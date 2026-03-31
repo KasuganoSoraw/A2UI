@@ -285,3 +285,73 @@ def test_list_timeline_variant_compiles_to_timeline_and_timeline_item() -> None:
   assert 'Timeline' in component_type_by_id['timeline_region_list_items']
   assert any('TimelineItem' in component_types for component_types in component_type_by_id.values())
   assert any('Card' in component_types for component_types in component_type_by_id.values())
+
+
+def test_init_plan_does_not_precreate_all_role_buckets() -> None:
+  compiler = SkeletonCompiler()
+  init_frames = compiler.apply(InitPlanDelta(event='init_plan', title='Lazy bucket page'))
+  init_component_ids = _slot_component_ids(init_frames)
+
+  assert 'hero_bucket' not in init_component_ids
+  assert 'summary_bucket' not in init_component_ids
+  assert 'details_bucket' not in init_component_ids
+  assert 'workflow_bucket' not in init_component_ids
+  assert 'form_bucket' not in init_component_ids
+  assert 'list_bucket' not in init_component_ids
+  assert 'supporting_bucket' not in init_component_ids
+  assert 'actions_bucket' not in init_component_ids
+
+
+
+def test_bucket_is_created_on_first_region_use_only() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Lazy bucket insert order'))
+
+  summary_frames = compiler.apply(AddRegionDelta(event='add_region', id='summary_region', role='summary', title='Summary'))
+  summary_component_ids = _slot_component_ids(summary_frames)
+  assert 'summary_bucket' in summary_component_ids
+  assert 'details_bucket' not in summary_component_ids
+
+  details_frames = compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='Details'))
+  details_component_ids = _slot_component_ids(details_frames)
+  assert 'details_bucket' in details_component_ids
+
+
+
+def test_hero_h1_is_deduplicated_or_downgraded_against_page_title() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='系统健康概览'))
+  compiler.apply(AddRegionDelta(event='add_region', id='hero_region', role='hero', title='核心状态'))
+
+  duplicate_frames = compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='hero_duplicate_h1',
+          region_id='hero_region',
+          text='系统健康概览',
+          usage_hint='h1',
+      )
+  )
+  duplicate_ids = _slot_component_ids(duplicate_frames)
+  assert 'hero_duplicate_h1' not in duplicate_ids
+
+  downgraded_frames = compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='hero_unique_h1',
+          region_id='hero_region',
+          text='关键风险与趋势',
+          usage_hint='h1',
+      )
+  )
+
+  downgraded_component = None
+  for frame in downgraded_frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'hero_unique_h1':
+        downgraded_component = component
+
+  assert downgraded_component is not None
+  assert downgraded_component.component['Text']['usageHint'] == 'h2'

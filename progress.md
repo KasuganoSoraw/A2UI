@@ -8,3 +8,4 @@
 - 2026-03-30 任务：仅前端新增 Timeline/TimelineItem 组件并接入 registry，补充时间线样式，打通后端 Timeline 帧到前端的基础展示容器能力（不改后端、不实现额外业务语义）。
 - 2026-03-30 任务：修复 chat_ui_builder 前端 Timeline/TimelineItem 的 A2UI 协议实现；组件改为基于 node/surfaceId 与 node.properties(child/children) 递归渲染，补齐 node.weight 支持，并新增对应设计文档与开发计划。
 - 2026-03-30 任务：重写 chat_ui_builder 的 SYSTEM_PROMPT 为“展示编排器”定位；强化只展示不编造边界，调整 raw/evidence 为按需展示，保留 usage_hint、list.timeline、FlowDiagram 规则与 one-shot。
+- 2026-03-31 任务：调整业务骨架生成策略为 role bucket 懒创建（取消 init_plan 后全量空 bucket 预创建），并新增 hero 文本与页面标题的 h1 去重/降级规则，补充对应测试用例。
