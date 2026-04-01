@@ -118,6 +118,18 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
   const specSource = extractSpecCandidate(rawSpecValue);
   const spec = parseSpec(specSource);
 
+  const chartWidthStyle = spec?.width ? {width: spec.width} : undefined;
+
+  const displayData = useMemo(() => {
+    if (!spec || !Array.isArray(spec.chartData)) return [];
+    return buildDisplayData(spec);
+  }, [spec]);
+
+  const metrics = useMemo(() => {
+    if (!spec || !Array.isArray(spec.settings.metrics)) return [];
+    return getRenderableMetrics(spec.settings.metrics, displayData);
+  }, [displayData, spec]);
+
   if (!spec) {
     return (
       <div className="a2ui-line-chart">
@@ -141,14 +153,6 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
       </div>
     );
   }
-
-  const chartWidthStyle = spec.width ? {width: spec.width} : undefined;
-
-  const displayData = useMemo(() => buildDisplayData(spec), [spec]);
-  const metrics = useMemo(
-    () => getRenderableMetrics(spec.settings.metrics, displayData),
-    [displayData, spec.settings.metrics]
-  );
 
   if (metrics.length === 0) {
     return (
