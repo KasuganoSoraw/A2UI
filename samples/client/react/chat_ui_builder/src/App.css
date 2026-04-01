@@ -718,6 +718,37 @@ textarea {
   height: 320px;
 }
 
+
+.render-surface .a2ui-line-chart .recharts-line-curve {
+  fill: none !important;
+  stroke: var(--a2ui-line-color, #2563eb) !important;
+  stroke-opacity: 1 !important;
+  opacity: 1 !important;
+}
+
+.render-surface .a2ui-line-chart .recharts-cartesian-grid line,
+.render-surface .a2ui-line-chart .recharts-cartesian-axis line,
+.render-surface .a2ui-line-chart .recharts-cartesian-axis path {
+  stroke-opacity: 1 !important;
+  opacity: 1 !important;
+}
+
+.render-surface .a2ui-line-chart .recharts-cartesian-grid line {
+  stroke: #e5e7eb !important;
+}
+
+.render-surface .a2ui-line-chart .recharts-cartesian-axis line,
+.render-surface .a2ui-line-chart .recharts-cartesian-axis path {
+  stroke: #cbd5e1 !important;
+}
+
+.render-surface .a2ui-line-chart .recharts-dot,
+.render-surface .a2ui-line-chart .recharts-active-dot {
+  fill: var(--a2ui-line-color, #2563eb) !important;
+  stroke: #ffffff !important;
+  opacity: 1 !important;
+}
+
 .render-surface .a2ui-line-chart-axis-titles {
   display: flex;
   justify-content: space-between;

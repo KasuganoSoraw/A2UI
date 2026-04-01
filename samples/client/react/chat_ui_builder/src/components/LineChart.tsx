@@ -1,4 +1,4 @@
-import {memo, useMemo} from 'react';
+import {memo, useMemo, type CSSProperties} from 'react';
 import {useA2UIComponent} from '@a2ui/react';
 import type {A2UIComponentProps} from '@a2ui/react';
 import {
@@ -179,18 +179,25 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
               />
               <Legend wrapperStyle={{fontSize: 12}} />
 
-              {metrics.map((metric, index) => (
-                <Line
-                  key={metric}
-                  type="monotone"
-                  dataKey={metric}
-                  stroke={METRIC_COLORS[index % METRIC_COLORS.length]}
-                  strokeWidth={2.5}
-                  dot={Boolean(spec.settings.markPoint)}
-                  connectNulls
-                  isAnimationActive={false}
-                />
-              ))}
+              {metrics.map((metric, index) => {
+                const lineColor = METRIC_COLORS[index % METRIC_COLORS.length];
+                return (
+                  <Line
+                    key={metric}
+                    className="a2ui-line-chart-series"
+                    type="monotone"
+                    dataKey={metric}
+                    stroke={lineColor}
+                    strokeWidth={2.5}
+                    strokeOpacity={1}
+                    dot={Boolean(spec.settings.markPoint)}
+                    activeDot={spec.settings.markPoint ? {r: 5} : true}
+                    connectNulls
+                    isAnimationActive={false}
+                    style={{'--a2ui-line-color': lineColor} as CSSProperties}
+                  />
+                );
+              })}
             </RechartsLineChart>
           </ResponsiveContainer>
         </div>

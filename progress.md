@@ -15,3 +15,4 @@
 - 2026-03-31 任务：新增 add_region_line_chart 全链路（schema/contract/skeleton/frame/tests）；按 table 同模式将 planning 事件编译为 AddLineChartDelta(spec_json)，并输出 LineChart.spec.path + dataModel spec valueString。
 - 2026-04-01 任务：优化 chat_ui_builder 前端 LineChart 展示质量；引入 Recharts 替换手写 SVG 绘制，保留 spec.path 解析链路并完善空态；补充本次改造设计/计划文档并完成样式调整。
 - 2026-04-01 任务：修复 chat_ui_builder 前端 LineChart 的 Hooks 调用顺序；将 useMemo 前置到全部 early return 之前并在回调中补充空值兜底，消除渲染轮次间 hook 顺序漂移问题。
+- 2026-04-01 任务：修复 LineChart 折线/网格线不可见问题；定位到 a2ui reset 的 all:revert 对 Recharts SVG 样式重置影响，在 .a2ui-line-chart 作用域补充保护样式并为折线透传颜色变量，恢复线条与网格可见性。
