@@ -138,6 +138,27 @@ class AddRegionLineChartDelta(BaseModel):
   chart_data: list[dict[str, str | int | float | bool | None]]
 
 
+class PieChartSliceSpec(BaseModel):
+  value: int | float
+  name: str
+  selected: bool | None = None
+
+
+class PieChartSeriesSpec(BaseModel):
+  data: list[PieChartSliceSpec]
+  radius: str | None = None
+
+
+class AddRegionPieChartDelta(BaseModel):
+  event: Literal["add_region_pie_chart"]
+  id: str
+  region_id: str
+  title: str | None = None
+  width: str | None = None
+  settings: dict[str, object] | None = None
+  chart_data: list[PieChartSeriesSpec]
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -226,6 +247,13 @@ class AddLineChartDelta(BaseModel):
   spec_json: str
 
 
+class AddPieChartDelta(BaseModel):
+  event: Literal["add_pie_chart"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -291,6 +319,7 @@ SkeletonDelta = Annotated[
     | AppendRegionListItemDelta
     | AddRegionTableDelta
     | AddRegionLineChartDelta
+    | AddRegionPieChartDelta
     | AddRegionFlowDiagramDelta
     | FinalizeDelta,
     Field(discriminator="event"),
@@ -309,6 +338,7 @@ Delta = Annotated[
     | AddFlowDiagramDelta
     | AddTableDelta
     | AddLineChartDelta
+    | AddPieChartDelta
     | AddInputDelta
     | AddDividerDelta
     | AppendListItemDelta

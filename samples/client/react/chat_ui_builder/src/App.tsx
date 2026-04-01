@@ -3,6 +3,7 @@ import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
 import {LineChart} from './components/LineChart';
+import {PieChart} from './components/PieChart';
 import {Table} from './components/Table';
 import {Timeline} from './components/Timeline';
 import {TimelineItem} from './components/TimelineItem';
@@ -45,6 +46,9 @@ if (!registry.has('Table')) {
 }
 if (!registry.has('LineChart')) {
   registry.register('LineChart', {component: LineChart});
+}
+if (!registry.has('PieChart')) {
+  registry.register('PieChart', {component: PieChart});
 }
 
 interface ShellProps {

@@ -13,6 +13,7 @@ from models import (
     AddRegionFactDelta,
     AddRegionFlowDiagramDelta,
     AddRegionLineChartDelta,
+    AddRegionPieChartDelta,
     AddRegionTableDelta,
     FlowDiagramEdge,
     FlowDiagramNode,
@@ -538,6 +539,77 @@ def test_add_region_line_chart_routes_and_emits_line_chart_component() -> None:
   assert component_by_id['weekly_trend']['LineChart']['spec']['path'] == '/content/weekly_trend/spec'
   assert chart_spec_string is not None
   assert '"title": "周趋势"' in chart_spec_string
+  assert '"width": "100%"' in chart_spec_string
+  assert '"settings"' in chart_spec_string
+  assert '"chartData"' in chart_spec_string
+
+
+def test_add_region_pie_chart_schema_can_be_parsed() -> None:
+  parsed = SKELETON_DELTA_ADAPTER.validate_python(
+      {
+          'event': 'add_region_pie_chart',
+          'id': 'traffic_share',
+          'region_id': 'insights_region',
+          'title': '渠道占比',
+          'width': '100%',
+          'settings': {'legend': 'bottom'},
+          'chart_data': [
+              {
+                  'radius': '50%',
+                  'data': [
+                      {'value': 1548, 'name': 'Search Engine'},
+                      {'value': 679, 'name': 'Marketing', 'selected': True},
+                  ],
+              }
+          ],
+      }
+  )
+
+  assert isinstance(parsed, AddRegionPieChartDelta)
+  assert parsed.chart_data[0].data[1].selected is True
+
+
+def test_add_region_pie_chart_routes_and_emits_pie_chart_component() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Pie chart page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='insights_region', role='insights', title='占比洞察'))
+
+  frames = compiler.apply(
+      AddRegionPieChartDelta(
+          event='add_region_pie_chart',
+          id='traffic_share',
+          region_id='insights_region',
+          title='流量来源占比',
+          width='100%',
+          settings={'legend': 'bottom'},
+          chart_data=[
+              {
+                  'radius': '50%',
+                  'data': [
+                      {'value': 1048, 'name': 'Search Engine'},
+                      {'value': 735, 'name': 'Direct'},
+                      {'value': 580, 'name': 'Email', 'selected': True},
+                  ],
+              }
+          ],
+      )
+  )
+
+  component_by_id: dict[str, object] = {}
+  chart_spec_string = None
+  for frame in frames:
+    if frame.surfaceUpdate:
+      for component in frame.surfaceUpdate.components:
+        component_by_id[component.id] = component.component
+    if frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/traffic_share':
+      for entry in frame.dataModelUpdate.contents:
+        if entry.key == 'spec':
+          chart_spec_string = entry.valueString
+
+  assert 'traffic_share' in component_by_id
+  assert component_by_id['traffic_share']['PieChart']['spec']['path'] == '/content/traffic_share/spec'
+  assert chart_spec_string is not None
+  assert '"title": "流量来源占比"' in chart_spec_string
   assert '"width": "100%"' in chart_spec_string
   assert '"settings"' in chart_spec_string
   assert '"chartData"' in chart_spec_string

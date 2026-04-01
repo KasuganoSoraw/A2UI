@@ -22,9 +22,11 @@ from models import (
     AddRegionImageDelta,
     AddRegionInputDelta,
     AddRegionLineChartDelta,
+    AddRegionPieChartDelta,
     AddRegionTextDelta,
     AddRegionTableDelta,
     AddLineChartDelta,
+    AddPieChartDelta,
     AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
@@ -135,6 +137,24 @@ class SkeletonCompiler:
           'text',
           lambda parent_id: AddLineChartDelta(
               event='add_line_chart',
+              id=delta.id,
+              parent_id=parent_id,
+              spec_json=chart_spec_json,
+          ),
+      )
+    if isinstance(delta, AddRegionPieChartDelta):
+      chart_spec = {
+          'title': delta.title,
+          'width': delta.width,
+          'settings': delta.settings or {},
+          'chartData': [series.model_dump(exclude_none=True) for series in delta.chart_data],
+      }
+      chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
+      return self._apply_region_delta(
+          delta.region_id,
+          'text',
+          lambda parent_id: AddPieChartDelta(
+              event='add_pie_chart',
               id=delta.id,
               parent_id=parent_id,
               spec_json=chart_spec_json,

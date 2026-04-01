@@ -91,6 +91,15 @@ PLANNING_DELTA_CONTRACT = [
         'chart_data': 'list of row objects; each row contains the dimension field and metric fields',
     },
     {
+        'event': 'add_region_pie_chart',
+        'id': 'string',
+        'region_id': 'string',
+        'title': 'optional string',
+        'width': 'optional string, e.g. 1000px | 100%',
+        'settings': 'optional object',
+        'chart_data': 'list of {data: list of {value:number,name:string,selected?}, radius?: string}',
+    },
+    {
         'event': 'add_region_flow_diagram',
         'id': 'string',
         'region_id': 'string',
@@ -174,6 +183,9 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 18. `add_region_line_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
 19. `add_region_line_chart` 适用于 `summary / details / insights / supporting`；不适用于 `workflow / form / actions`。
 20. 当输入主要是数值随时间或类别变化趋势时，优先使用 `add_region_line_chart`，不要把明显趋势数据改写成长段文本。
+21. `add_region_pie_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
+22. `add_region_pie_chart` 适用于 `summary / details / insights / supporting`。
+23. 当输入主要目标是展示占比、构成、份额分布时，优先使用 `add_region_pie_chart`，不要把明显占比型数据硬改写成长段文本。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题
