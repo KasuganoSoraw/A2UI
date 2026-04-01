@@ -13,3 +13,4 @@
 - 2026-03-31 任务：为 chat_ui_builder 接入 add_region_table 全链路；新增 table planning/low-level schema，Skeleton 复用 text 默认落点编译 AddTableDelta，FrameCompiler 输出 Table(spec.path) 并写入 spec_json，补充 contract 文案与表格链路测试。
 - 2026-03-31 任务：前端新增 Table 组件并注册到 App registry；按 spec.path 读取并解析后端 valueString(JSON) 表格 spec，使用原生 HTML table 渲染，补充最小 table 样式与空态/异常降级处理。
 - 2026-03-31 任务：新增 add_region_line_chart 全链路（schema/contract/skeleton/frame/tests）；按 table 同模式将 planning 事件编译为 AddLineChartDelta(spec_json)，并输出 LineChart.spec.path + dataModel spec valueString。
+- 2026-04-01 任务：优化 chat_ui_builder 前端 LineChart 展示质量；引入 Recharts 替换手写 SVG 绘制，保留 spec.path 解析链路并完善空态；补充本次改造设计/计划文档并完成样式调整。

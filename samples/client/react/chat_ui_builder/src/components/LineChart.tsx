@@ -1,6 +1,16 @@
-import {memo} from 'react';
+import {memo, useMemo} from 'react';
 import {useA2UIComponent} from '@a2ui/react';
 import type {A2UIComponentProps} from '@a2ui/react';
+import {
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart as RechartsLineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 type MetricValue = string | number | boolean | null;
 
@@ -30,17 +40,7 @@ interface LineChartNodeProps {
   spec?: string | LineChartSpec | SpecBinding;
 }
 
-interface MetricSeries {
-  metric: string;
-  points: Array<{x: number; y: number; value: number; index: number}>;
-}
-
-const CANVAS_WIDTH = 720;
-const CANVAS_HEIGHT = 260;
-const PADDING_LEFT = 56;
-const PADDING_RIGHT = 20;
-const PADDING_TOP = 20;
-const PADDING_BOTTOM = 40;
+const METRIC_COLORS = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 function isLineChartSpec(value: unknown): value is LineChartSpec {
   if (!value || typeof value !== 'object') return false;
@@ -88,46 +88,22 @@ function parseNumber(value: MetricValue): number | null {
   return null;
 }
 
-function buildMetricSeries(spec: LineChartSpec): MetricSeries[] {
-  const metrics = spec.settings.metrics;
-  const chartData = spec.chartData;
-  if (chartData.length === 0) return [];
+function buildDisplayData(spec: LineChartSpec) {
+  return spec.chartData.map((row) => {
+    const normalized: Record<string, string | number | null> = {
+      __dimension: String(row[spec.settings.dimension] ?? ''),
+    };
 
-  const values: number[] = [];
-  const normalizedRows = chartData.map((row) =>
-    metrics.map((metric) => parseNumber(row[metric]))
-  );
-  normalizedRows.forEach((rowValues) => {
-    rowValues.forEach((value) => {
-      if (value !== null) values.push(value);
+    spec.settings.metrics.forEach((metric) => {
+      normalized[metric] = parseNumber(row[metric]);
     });
-  });
 
-  if (values.length === 0) return [];
-
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const valueSpan = maxValue - minValue || 1;
-  const innerWidth = CANVAS_WIDTH - PADDING_LEFT - PADDING_RIGHT;
-  const innerHeight = CANVAS_HEIGHT - PADDING_TOP - PADDING_BOTTOM;
-  const xStep = chartData.length > 1 ? innerWidth / (chartData.length - 1) : 0;
-
-  return metrics.map((metric, metricIndex) => {
-    const points: MetricSeries['points'] = [];
-    chartData.forEach((row, index) => {
-      const value = normalizedRows[index][metricIndex];
-      if (value === null) return;
-      const x = PADDING_LEFT + xStep * index;
-      const y = PADDING_TOP + ((maxValue - value) / valueSpan) * innerHeight;
-      points.push({x, y, value, index});
-    });
-    return {metric, points};
+    return normalized;
   });
 }
 
-function colorForMetric(index: number): string {
-  const palette = ['#2563eb', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-  return palette[index % palette.length];
+function getRenderableMetrics(metrics: string[], rows: Array<Record<string, string | number | null>>) {
+  return metrics.filter((metric) => rows.some((row) => typeof row[metric] === 'number'));
 }
 
 export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponentProps<any>) {
@@ -166,9 +142,15 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
     );
   }
 
-  const series = buildMetricSeries(spec);
-  const hasDrawableSeries = series.some((item) => item.points.length > 0);
-  if (!hasDrawableSeries) {
+  const chartWidthStyle = spec.width ? {width: spec.width} : undefined;
+
+  const displayData = useMemo(() => buildDisplayData(spec), [spec]);
+  const metrics = useMemo(
+    () => getRenderableMetrics(spec.settings.metrics, displayData),
+    [displayData, spec.settings.metrics]
+  );
+
+  if (metrics.length === 0) {
     return (
       <div className="a2ui-line-chart">
         <div className="a2ui-line-chart-empty">暂无可绘制数据</div>
@@ -176,56 +158,37 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
     );
   }
 
-  const chartWidthStyle = spec.width ? {width: spec.width} : undefined;
-  const dimensionValues = spec.chartData.map((row) => String(row[spec.settings.dimension] ?? ''));
-
   return (
     <div className="a2ui-line-chart" style={chartWidthStyle}>
       <div className="a2ui-line-chart-card">
         {spec.title ? <div className="a2ui-line-chart-title">{spec.title}</div> : null}
 
-        <div className="a2ui-line-chart-legend">
-          {series.map((item, index) => (
-            <span key={item.metric}>
-              <i style={{backgroundColor: colorForMetric(index)}} />
-              {item.metric}
-            </span>
-          ))}
-        </div>
-
         <div className="a2ui-line-chart-canvas">
-          <svg viewBox={`0 0 ${CANVAS_WIDTH} ${CANVAS_HEIGHT}`} preserveAspectRatio="none">
-            <line x1={PADDING_LEFT} y1={PADDING_TOP} x2={PADDING_LEFT} y2={CANVAS_HEIGHT - PADDING_BOTTOM} stroke="#d1d5db" />
-            <line
-              x1={PADDING_LEFT}
-              y1={CANVAS_HEIGHT - PADDING_BOTTOM}
-              x2={CANVAS_WIDTH - PADDING_RIGHT}
-              y2={CANVAS_HEIGHT - PADDING_BOTTOM}
-              stroke="#d1d5db"
-            />
+          <ResponsiveContainer width="100%" height="100%">
+            <RechartsLineChart data={displayData} margin={{top: 12, right: 12, left: 0, bottom: 10}}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="__dimension" tick={{fill: '#64748b', fontSize: 12}} minTickGap={16} />
+              <YAxis tick={{fill: '#64748b', fontSize: 12}} width={46} />
+              <Tooltip
+                contentStyle={{borderRadius: 8, borderColor: '#dbe3ef'}}
+                formatter={(value: number | string | null) => (value == null ? '--' : String(value))}
+              />
+              <Legend wrapperStyle={{fontSize: 12}} />
 
-            {series.map((item, index) => {
-              if (item.points.length === 0) return null;
-              const color = colorForMetric(index);
-              const polylinePoints = item.points.map((point) => `${point.x},${point.y}`).join(' ');
-              return (
-                <g key={item.metric}>
-                  <polyline fill="none" stroke={color} strokeWidth="2.5" points={polylinePoints} />
-                  {spec.settings.markPoint
-                    ? item.points.map((point) => (
-                        <circle key={`${item.metric}-${point.index}`} cx={point.x} cy={point.y} r="3" fill={color} />
-                      ))
-                    : null}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        <div className="a2ui-line-chart-axis-labels">
-          {dimensionValues.map((label, index) => (
-            <span key={`${label}-${index}`}>{label}</span>
-          ))}
+              {metrics.map((metric, index) => (
+                <Line
+                  key={metric}
+                  type="monotone"
+                  dataKey={metric}
+                  stroke={METRIC_COLORS[index % METRIC_COLORS.length]}
+                  strokeWidth={2.5}
+                  dot={Boolean(spec.settings.markPoint)}
+                  connectNulls
+                  isAnimationActive={false}
+                />
+              ))}
+            </RechartsLineChart>
+          </ResponsiveContainer>
         </div>
 
         <div className="a2ui-line-chart-axis-titles">
