@@ -2,6 +2,7 @@ import {FormEvent, type Dispatch, type SetStateAction, useCallback, useMemo, use
 import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2ui/react';
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
+import {LineChart} from './components/LineChart';
 import {Table} from './components/Table';
 import {Timeline} from './components/Timeline';
 import {TimelineItem} from './components/TimelineItem';
@@ -41,6 +42,9 @@ if (!registry.has('TimelineItem')) {
 }
 if (!registry.has('Table')) {
   registry.register('Table', {component: Table});
+}
+if (!registry.has('LineChart')) {
+  registry.register('LineChart', {component: LineChart});
 }
 
 interface ShellProps {
