@@ -1,4 +1,4 @@
-import {memo, useMemo, type CSSProperties} from 'react';
+import {memo, useMemo} from 'react';
 import {useA2UIComponent} from '@a2ui/react';
 import type {A2UIComponentProps} from '@a2ui/react';
 import {
@@ -184,17 +184,20 @@ export const LineChart = memo(function LineChart({node, surfaceId}: A2UIComponen
                 return (
                   <Line
                     key={metric}
-                    className="a2ui-line-chart-series"
                     type="monotone"
                     dataKey={metric}
                     stroke={lineColor}
                     strokeWidth={2.5}
                     strokeOpacity={1}
-                    dot={Boolean(spec.settings.markPoint)}
-                    activeDot={spec.settings.markPoint ? {r: 5} : true}
+                    fill="none"
+                    dot={
+                      spec.settings.markPoint
+                        ? {r: 3, fill: lineColor, stroke: '#ffffff', strokeWidth: 1}
+                        : false
+                    }
+                    activeDot={{r: 5, fill: lineColor, stroke: '#ffffff', strokeWidth: 1}}
                     connectNulls
                     isAnimationActive={false}
-                    style={{'--a2ui-line-color': lineColor} as CSSProperties}
                   />
                 );
               })}

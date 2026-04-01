@@ -721,7 +721,6 @@ textarea {
 
 .render-surface .a2ui-line-chart .recharts-line-curve {
   fill: none !important;
-  stroke: var(--a2ui-line-color, #2563eb) !important;
   stroke-opacity: 1 !important;
   opacity: 1 !important;
 }
@@ -744,8 +743,6 @@ textarea {
 
 .render-surface .a2ui-line-chart .recharts-dot,
 .render-surface .a2ui-line-chart .recharts-active-dot {
-  fill: var(--a2ui-line-color, #2563eb) !important;
-  stroke: #ffffff !important;
   opacity: 1 !important;
 }
 
