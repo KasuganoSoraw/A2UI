@@ -59,10 +59,7 @@ function parseSpec(raw: string | MermaidSpec | null): MermaidSpec | null {
 }
 
 function buildMermaidSource(spec: MermaidSpec): string {
-  const definition = spec.definition.trim();
-  if (!definition) return '';
-  if (definition.startsWith(spec.diagramType)) return definition;
-  return `${spec.diagramType}\n${definition}`;
+  return spec.definition.trim();
 }
 
 export const Mermaid = memo(function Mermaid({node, surfaceId}: A2UIComponentProps<any>) {

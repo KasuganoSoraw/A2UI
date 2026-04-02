@@ -20,3 +20,4 @@
 - 2026-04-01 任务：新增 PieChart 全链路事件（add_region_pie_chart/add_pie_chart）；后端按 LineChart 路径完成 schema/skeleton/frame/prompt 接入，前端新增 PieChart 组件与注册样式，并补充 pie chart 路由与 spec 输出测试。
 - 2026-04-02 任务：新增容器级 appearance 机制并落地 hero_fact；为 hero 的 fact slot 容器下发 appearance=hero_fact，编译层透传到 Row/Column payload，前端映射 data-appearance 并补充 scoped 样式与回归测试。
 - 2026-04-02 任务：新增 Mermaid 全链路事件（add_region_mermaid/add_mermaid）；后端按重组件链路完成 schema/skeleton/frame/prompt 接入并按 diagram_type 路由 flow/text，前端新增 Mermaid 组件与样式，补充 Mermaid 路由与 spec 字段测试。
+- 2026-04-02 任务：修复前端 Mermaid 定义透传逻辑；移除 buildMermaidSource 对 diagramType 的前缀拼接，完整 definition 改为原样 trim 后渲染，避免 graph/flowchart 双前缀导致渲染失败。
