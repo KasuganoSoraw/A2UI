@@ -32,6 +32,7 @@ class ContainerState:
   component_id: str
   container_type: str
   child_ids: list[str] = field(default_factory=list)
+  appearance: str | None = None
 
 
 class FrameCompiler:
@@ -164,13 +165,14 @@ class FrameCompiler:
   def _container_component(self, container: ContainerState) -> ComponentNode:
     explicit_children = list(container.child_ids)
     if container.container_type == 'Row':
-      component = {
-          'Row': {
-              'children': {'explicitList': explicit_children},
-              'alignment': 'center',
-              'distribution': 'start',
-          }
+      row_payload: dict[str, Any] = {
+          'children': {'explicitList': explicit_children},
+          'alignment': 'center',
+          'distribution': 'start',
       }
+      if container.appearance:
+        row_payload['appearance'] = container.appearance
+      component = {'Row': row_payload}
     elif container.container_type == 'List':
       component = {
           'List': {
@@ -186,13 +188,14 @@ class FrameCompiler:
           }
       }
     else:
-      component = {
-          'Column': {
-              'children': {'explicitList': explicit_children},
-              'alignment': 'stretch',
-              'distribution': 'start',
-          }
+      column_payload: dict[str, Any] = {
+          'children': {'explicitList': explicit_children},
+          'alignment': 'stretch',
+          'distribution': 'start',
       }
+      if container.appearance:
+        column_payload['appearance'] = container.appearance
+      component = {'Column': column_payload}
     return ComponentNode(id=container.component_id, component=component)
 
   def _init_surface(self, delta: InitSurfaceDelta) -> list[A2UIFrame]:
@@ -341,7 +344,11 @@ class FrameCompiler:
       )
     else:
       self._append_child(actual_parent_id, section_id, delta.order)
-      self.containers[section_id] = ContainerState(component_id=section_id, container_type=delta.layout)
+      self.containers[section_id] = ContainerState(
+          component_id=section_id,
+          container_type=delta.layout,
+          appearance=delta.appearance,
+      )
       explicit_children: list[str] = []
       if delta.title:
         title_id = self._helper_id(section_id, 'title')

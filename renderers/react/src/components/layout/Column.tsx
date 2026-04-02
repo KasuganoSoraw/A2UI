@@ -36,6 +36,7 @@ export const Column = memo(function Column({
   // Match Lit's default values
   const alignment = props.alignment ?? 'stretch';
   const distribution = props.distribution ?? 'start';
+  const appearance = props.appearance;
 
   const children = Array.isArray(props.children) ? props.children : [];
 
@@ -48,6 +49,7 @@ export const Column = memo(function Column({
       className="a2ui-column"
       data-alignment={alignment}
       data-distribution={distribution}
+      data-appearance={appearance}
       style={hostStyle}
     >
       <section

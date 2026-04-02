@@ -512,6 +512,7 @@ export declare interface ResolvedRow {
     | "spaceAround"
     | "spaceEvenly";
   alignment?: "start" | "center" | "end" | "stretch";
+  appearance?: string;
 }
 
 export declare interface ResolvedColumn {
@@ -524,6 +525,7 @@ export declare interface ResolvedColumn {
     | "spaceAround"
     | "spaceEvenly";
   alignment?: "start" | "center" | "end" | "stretch";
+  appearance?: string;
 }
 
 export declare interface ResolvedButton {

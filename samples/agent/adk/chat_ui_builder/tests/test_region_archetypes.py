@@ -613,3 +613,56 @@ def test_add_region_pie_chart_routes_and_emits_pie_chart_component() -> None:
   assert '"width": "100%"' in chart_spec_string
   assert '"settings"' in chart_spec_string
   assert '"chartData"' in chart_spec_string
+
+
+def test_hero_fact_slot_container_emits_appearance_hero_fact() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Hero appearance page'))
+
+  frames = compiler.apply(AddRegionDelta(event='add_region', id='hero_region', role='hero', title='概览'))
+
+  hero_fact_payload = None
+  for frame in frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'hero_region_fact_row':
+        hero_fact_payload = component.component.get('Row')
+
+  assert hero_fact_payload is not None
+  assert hero_fact_payload['appearance'] == 'hero_fact'
+
+
+def test_hero_fact_items_still_mount_under_fact_row_and_keep_text_usage_hints() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Hero facts page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='hero_region', role='hero', title='概览'))
+
+  frames = compiler.apply(
+      AddRegionFactDelta(
+          event='add_region_fact',
+          id='fact_total',
+          region_id='hero_region',
+          label='总访问量',
+          value='1200',
+      )
+  )
+
+  hero_fact_row_children = None
+  label_hint = None
+  value_hint = None
+  for frame in frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'hero_region_fact_row':
+        hero_fact_row_children = component.component['Row']['children']['explicitList']
+      if component.id == 'fact_total__label':
+        label_hint = component.component['Text']['usageHint']
+      if component.id == 'fact_total__value':
+        value_hint = component.component['Text']['usageHint']
+
+  assert hero_fact_row_children is not None
+  assert 'fact_total' in hero_fact_row_children
+  assert label_hint == 'caption'
+  assert value_hint == 'body'

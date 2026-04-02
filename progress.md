@@ -18,3 +18,4 @@
 - 2026-04-01 任务：修复 LineChart 折线/网格线不可见问题；定位到 a2ui reset 的 all:revert 对 Recharts SVG 样式重置影响，在 .a2ui-line-chart 作用域补充保护样式并为折线透传颜色变量，恢复线条与网格可见性。
 - 2026-04-01 任务：精确修复 LineChart 折线不可见；删除 .recharts-line-curve 的颜色接管与 CSS 变量传色方案，改为由 Recharts Line props 显式控制线/点样式，保留网格与坐标轴可见性保护。
 - 2026-04-01 任务：新增 PieChart 全链路事件（add_region_pie_chart/add_pie_chart）；后端按 LineChart 路径完成 schema/skeleton/frame/prompt 接入，前端新增 PieChart 组件与注册样式，并补充 pie chart 路由与 spec 输出测试。
+- 2026-04-02 任务：新增容器级 appearance 机制并落地 hero_fact；为 hero 的 fact slot 容器下发 appearance=hero_fact，编译层透传到 Row/Column payload，前端映射 data-appearance 并补充 scoped 样式与回归测试。

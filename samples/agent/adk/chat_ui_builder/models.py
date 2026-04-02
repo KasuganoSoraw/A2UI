@@ -175,6 +175,7 @@ class AddSectionDelta(BaseModel):
   title: str | None = None
   description: str | None = None
   order: int | None = None
+  appearance: str | None = None
 
 
 class AddTextDelta(BaseModel):

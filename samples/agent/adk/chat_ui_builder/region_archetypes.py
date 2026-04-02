@@ -42,6 +42,7 @@ class SlotSpec:
   section_id: str
   layout: str
   order: int
+  appearance: str | None = None
 
 
 class RegionArchetypeBuilder:
@@ -149,6 +150,7 @@ class RegionArchetypeBuilder:
                   parent_id=region_id,
                   layout=spec.layout,
                   order=spec.order,
+                  appearance=spec.appearance,
               )
           )
       )
@@ -177,7 +179,13 @@ class HeroArchetypeBuilder(RegionArchetypeBuilder):
         emit,
         include_body_slot=context.arrangement.body != 'compact_group',
         slot_specs=[
-            SlotSpec(name='fact', section_id=f'{region_id}_{context.arrangement.facts}', layout=self._facts_layout(context), order=30),
+            SlotSpec(
+                name='fact',
+                section_id=f'{region_id}_{context.arrangement.facts}',
+                layout=self._facts_layout(context),
+                order=30,
+                appearance='hero_fact',
+            ),
             SlotSpec(name='action_primary', section_id=actions_id, layout=self._actions_layout(context), order=40),
         ],
         slot_parents={'action_secondary': actions_id},
