@@ -13,6 +13,7 @@ from models import (
     AddRegionFactDelta,
     AddRegionFlowDiagramDelta,
     AddRegionLineChartDelta,
+    AddRegionMermaidDelta,
     AddRegionPieChartDelta,
     AddRegionTableDelta,
     FlowDiagramEdge,
@@ -666,3 +667,89 @@ def test_hero_fact_items_still_mount_under_fact_row_and_keep_text_usage_hints() 
   assert 'fact_total' in hero_fact_row_children
   assert label_hint == 'caption'
   assert value_hint == 'body'
+
+
+def test_add_region_mermaid_schema_can_be_parsed() -> None:
+  parsed = SKELETON_DELTA_ADAPTER.validate_python(
+      {
+          'event': 'add_region_mermaid',
+          'id': 'sequence_a',
+          'region_id': 'workflow_region',
+          'title': '时序图',
+          'diagram_type': 'sequenceDiagram',
+          'definition': 'sequenceDiagram\\nA->>B: hello',
+      }
+  )
+
+  assert isinstance(parsed, AddRegionMermaidDelta)
+  assert parsed.diagram_type == 'sequenceDiagram'
+  assert parsed.definition.startswith('sequenceDiagram')
+
+
+def test_add_region_mermaid_routes_sequence_diagram_to_flow_slot() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Mermaid routing page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='workflow_region', role='workflow', title='流程'))
+
+  frames = compiler.apply(
+      AddRegionMermaidDelta(
+          event='add_region_mermaid',
+          id='sequence_a',
+          region_id='workflow_region',
+          title='时序图',
+          diagram_type='sequenceDiagram',
+          definition='sequenceDiagram\\nA->>B: hello',
+      )
+  )
+
+  flow_children = None
+  for frame in frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'workflow_region_flow':
+        flow_children = component.component['Column']['children']['explicitList']
+
+  assert flow_children is not None
+  assert 'sequence_a' in flow_children
+
+
+def test_add_region_mermaid_routes_er_diagram_to_text_slot_and_emits_spec_without_style_fields() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Mermaid details page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='结构详情'))
+
+  frames = compiler.apply(
+      AddRegionMermaidDelta(
+          event='add_region_mermaid',
+          id='er_schema',
+          region_id='details_region',
+          title='ER 结构图',
+          diagram_type='erDiagram',
+          definition='erDiagram\\nUSER ||--o{ ORDER : places',
+      )
+  )
+
+  details_body_children = None
+  mermaid_spec_string = None
+  component_by_id: dict[str, object] = {}
+  for frame in frames:
+    if frame.surfaceUpdate:
+      for component in frame.surfaceUpdate.components:
+        component_by_id[component.id] = component.component
+        if component.id == 'details_region_body':
+          details_body_children = component.component['Column']['children']['explicitList']
+    if frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/er_schema':
+      for entry in frame.dataModelUpdate.contents:
+        if entry.key == 'spec':
+          mermaid_spec_string = entry.valueString
+
+  assert details_body_children is not None
+  assert 'er_schema' in details_body_children
+  assert component_by_id['er_schema']['Mermaid']['spec']['path'] == '/content/er_schema/spec'
+  assert mermaid_spec_string is not None
+  assert '"title": "ER 结构图"' in mermaid_spec_string
+  assert '"diagramType": "erDiagram"' in mermaid_spec_string
+  assert '"definition": "erDiagram' in mermaid_spec_string
+  assert '"width"' not in mermaid_spec_string
+  assert '"height"' not in mermaid_spec_string

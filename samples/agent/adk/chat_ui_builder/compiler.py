@@ -14,6 +14,7 @@ from models import (
     AddInputDelta,
     AddKeyValueDelta,
     AddLineChartDelta,
+    AddMermaidDelta,
     AddPieChartDelta,
     AddSectionDelta,
     AddTableDelta,
@@ -75,6 +76,8 @@ class FrameCompiler:
       return self._add_line_chart(delta)
     if isinstance(delta, AddPieChartDelta):
       return self._add_pie_chart(delta)
+    if isinstance(delta, AddMermaidDelta):
+      return self._add_mermaid(delta)
     if isinstance(delta, AppendListItemDelta):
       return self._append_list_item(delta)
     return []
@@ -551,6 +554,23 @@ class FrameCompiler:
     return prefix_frames + [
         self._surface_update([parent_update, chart_component]),
         self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_mermaid(self, delta: AddMermaidDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', 'Mermaid 图')
+    parent = self._ensure_container(parent_id)
+    diagram_id = self._register_id(delta.id)
+    if diagram_id == parent.component_id:
+      raise ValueError(f'Mermaid id {diagram_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, diagram_id)
+    parent_update = self._container_component(parent)
+    diagram_component = ComponentNode(
+        id=diagram_id,
+        component={'Mermaid': {'spec': {'path': f'/content/{diagram_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, diagram_component]),
+        self._data_update(f'/content/{diagram_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:

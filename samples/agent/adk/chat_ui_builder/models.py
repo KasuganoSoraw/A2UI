@@ -159,6 +159,15 @@ class AddRegionPieChartDelta(BaseModel):
   chart_data: list[PieChartSeriesSpec]
 
 
+class AddRegionMermaidDelta(BaseModel):
+  event: Literal["add_region_mermaid"]
+  id: str
+  region_id: str
+  title: str | None = None
+  diagram_type: Literal["flowchart", "sequenceDiagram", "stateDiagram-v2", "erDiagram", "classDiagram"]
+  definition: str
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -255,6 +264,13 @@ class AddPieChartDelta(BaseModel):
   spec_json: str
 
 
+class AddMermaidDelta(BaseModel):
+  event: Literal["add_mermaid"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -321,6 +337,7 @@ SkeletonDelta = Annotated[
     | AddRegionTableDelta
     | AddRegionLineChartDelta
     | AddRegionPieChartDelta
+    | AddRegionMermaidDelta
     | AddRegionFlowDiagramDelta
     | FinalizeDelta,
     Field(discriminator="event"),
@@ -340,6 +357,7 @@ Delta = Annotated[
     | AddTableDelta
     | AddLineChartDelta
     | AddPieChartDelta
+    | AddMermaidDelta
     | AddInputDelta
     | AddDividerDelta
     | AppendListItemDelta

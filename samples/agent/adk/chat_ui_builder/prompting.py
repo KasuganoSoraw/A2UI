@@ -100,6 +100,14 @@ PLANNING_DELTA_CONTRACT = [
         'chart_data': 'list of {data: list of {value:number,name:string,selected?}, radius?: string}',
     },
     {
+        'event': 'add_region_mermaid',
+        'id': 'string',
+        'region_id': 'string',
+        'title': 'optional string',
+        'diagram_type': 'flowchart | sequenceDiagram | stateDiagram-v2 | erDiagram | classDiagram',
+        'definition': 'string, mermaid source',
+    },
+    {
         'event': 'add_region_flow_diagram',
         'id': 'string',
         'region_id': 'string',
@@ -186,6 +194,13 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 21. `add_region_pie_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
 22. `add_region_pie_chart` 适用于 `summary / details / insights / supporting`。
 23. 当输入主要目标是展示占比、构成、份额分布时，优先使用 `add_region_pie_chart`，不要把明显占比型数据硬改写成长段文本。
+24. `add_region_mermaid` 是内容事件，不是新的 role，也不是新的 presentation/layout；不要为 Mermaid 的每种图单独创建新 event。
+25. Mermaid 只用于当前原生组件不适合表达的关系/结构图；若 `add_region_flow_diagram` 足够表达流程/决策流，优先使用原生 flow diagram。
+26. `sequenceDiagram` / `stateDiagram-v2` 更适合 Mermaid；`erDiagram` / `classDiagram` 更适合 Mermaid 的结构表达。
+27. role 限制：`flowchart` / `sequenceDiagram` / `stateDiagram-v2` 只允许放在 `workflow` 或 `details`；`erDiagram` / `classDiagram` 只允许放在 `details` 或 `supporting`。
+28. 不要在 `hero`、`summary`、`list`、`actions`、`form` 中使用 `add_region_mermaid`。
+29. Mermaid 与 `add_region_flow_diagram` 对同一批流程数据默认二选一，不要重复表达。
+30. Mermaid 与 table 对同一批结构信息默认二选一，不要重复表达。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题

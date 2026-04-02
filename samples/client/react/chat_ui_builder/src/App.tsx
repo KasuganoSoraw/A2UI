@@ -3,6 +3,7 @@ import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
 import {LineChart} from './components/LineChart';
+import {Mermaid} from './components/Mermaid';
 import {PieChart} from './components/PieChart';
 import {Table} from './components/Table';
 import {Timeline} from './components/Timeline';
@@ -49,6 +50,9 @@ if (!registry.has('LineChart')) {
 }
 if (!registry.has('PieChart')) {
   registry.register('PieChart', {component: PieChart});
+}
+if (!registry.has('Mermaid')) {
+  registry.register('Mermaid', {component: Mermaid});
 }
 
 interface ShellProps {

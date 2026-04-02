@@ -19,3 +19,4 @@
 - 2026-04-01 任务：精确修复 LineChart 折线不可见；删除 .recharts-line-curve 的颜色接管与 CSS 变量传色方案，改为由 Recharts Line props 显式控制线/点样式，保留网格与坐标轴可见性保护。
 - 2026-04-01 任务：新增 PieChart 全链路事件（add_region_pie_chart/add_pie_chart）；后端按 LineChart 路径完成 schema/skeleton/frame/prompt 接入，前端新增 PieChart 组件与注册样式，并补充 pie chart 路由与 spec 输出测试。
 - 2026-04-02 任务：新增容器级 appearance 机制并落地 hero_fact；为 hero 的 fact slot 容器下发 appearance=hero_fact，编译层透传到 Row/Column payload，前端映射 data-appearance 并补充 scoped 样式与回归测试。
+- 2026-04-02 任务：新增 Mermaid 全链路事件（add_region_mermaid/add_mermaid）；后端按重组件链路完成 schema/skeleton/frame/prompt 接入并按 diagram_type 路由 flow/text，前端新增 Mermaid 组件与样式，补充 Mermaid 路由与 spec 字段测试。

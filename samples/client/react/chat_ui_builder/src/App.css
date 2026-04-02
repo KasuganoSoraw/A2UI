@@ -800,3 +800,40 @@ textarea {
   text-align: center;
   padding: 14px 8px;
 }
+
+.render-surface .a2ui-mermaid {
+  width: 100%;
+}
+
+.render-surface .a2ui-mermaid-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.render-surface .a2ui-mermaid-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #303133;
+}
+
+.render-surface .a2ui-mermaid-canvas {
+  width: 100%;
+  min-height: 220px;
+  overflow: auto;
+}
+
+.render-surface .a2ui-mermaid-canvas svg {
+  width: 100%;
+  height: auto;
+}
+
+.render-surface .a2ui-mermaid-empty {
+  color: #909399;
+  text-align: center;
+  padding: 14px 8px;
+}

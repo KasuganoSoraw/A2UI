@@ -22,10 +22,12 @@ from models import (
     AddRegionImageDelta,
     AddRegionInputDelta,
     AddRegionLineChartDelta,
+    AddRegionMermaidDelta,
     AddRegionPieChartDelta,
     AddRegionTextDelta,
     AddRegionTableDelta,
     AddLineChartDelta,
+    AddMermaidDelta,
     AddPieChartDelta,
     AddSectionDelta,
     AddTableDelta,
@@ -158,6 +160,24 @@ class SkeletonCompiler:
               id=delta.id,
               parent_id=parent_id,
               spec_json=chart_spec_json,
+          ),
+      )
+    if isinstance(delta, AddRegionMermaidDelta):
+      mermaid_spec = {
+          'title': delta.title,
+          'diagramType': delta.diagram_type,
+          'definition': delta.definition,
+      }
+      mermaid_spec_json = json.dumps(mermaid_spec, ensure_ascii=False)
+      diagram_slot = 'flow' if delta.diagram_type in {'flowchart', 'sequenceDiagram', 'stateDiagram-v2'} else 'text'
+      return self._apply_region_delta(
+          delta.region_id,
+          diagram_slot,
+          lambda parent_id: AddMermaidDelta(
+              event='add_mermaid',
+              id=delta.id,
+              parent_id=parent_id,
+              spec_json=mermaid_spec_json,
           ),
       )
     if isinstance(delta, AddRegionFactDelta):
