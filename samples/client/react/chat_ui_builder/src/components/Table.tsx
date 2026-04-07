@@ -12,10 +12,19 @@ interface TableColumnSpec {
   ellipsis?: boolean;
 }
 
+export type TableCellPrimitive = string | number | boolean | null;
+
+export interface TableCellObject {
+  value: TableCellPrimitive;
+  visual_weight?: number;
+}
+
+export type TableCellValue = TableCellPrimitive | TableCellObject;
+
 interface TableSpec {
   title?: string;
   columns: TableColumnSpec[];
-  rows: Array<Record<string, unknown>>;
+  rows: Array<Record<string, TableCellValue>>;
   row_key?: string;
   striped?: boolean;
   bordered?: boolean;
@@ -87,13 +96,50 @@ function normalizeCellValue(value: unknown): string {
   }
 }
 
+function isTableCellObject(value: unknown): value is TableCellObject {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (!('value' in value)) return false;
+  const candidate = value as {value: unknown; visual_weight?: unknown};
+  const primitiveValid =
+    candidate.value === null ||
+    typeof candidate.value === 'string' ||
+    typeof candidate.value === 'number' ||
+    typeof candidate.value === 'boolean';
+  const weightValid = candidate.visual_weight == null || typeof candidate.visual_weight === 'number';
+  return primitiveValid && weightValid;
+}
+
+function normalizeVisualWeight(visualWeight: number | undefined): number | null {
+  if (typeof visualWeight !== 'number' || !Number.isFinite(visualWeight)) return null;
+  const normalized = Math.trunc(visualWeight);
+  if (normalized < 1 || normalized > 5) return null;
+  return normalized;
+}
+
+export function resolveTableCellRender(cell: TableCellValue | undefined): {text: string; weightClassName?: string} {
+  if (isTableCellObject(cell)) {
+    const weight = normalizeVisualWeight(cell.visual_weight);
+    return {
+      text: normalizeCellValue(cell.value),
+      weightClassName: weight ? `a2ui-table-cell-weight-${weight}` : undefined,
+    };
+  }
+  return {text: normalizeCellValue(cell)};
+}
+
+function renderCell(cell: TableCellValue | undefined) {
+  const rendered = resolveTableCellRender(cell);
+  if (!rendered.weightClassName) return rendered.text;
+  return <span className={rendered.weightClassName}>{rendered.text}</span>;
+}
+
 function resolveAlignClass(align?: ColumnAlign): string {
   if (align === 'center') return 'is-align-center';
   if (align === 'right') return 'is-align-right';
   return 'is-align-left';
 }
 
-function resolveRowKey(spec: TableSpec, row: Record<string, unknown>, index: number): string {
+function resolveRowKey(spec: TableSpec, row: Record<string, TableCellValue>, index: number): string {
   if (spec.row_key) {
     const keyValue = row[spec.row_key];
     if (keyValue !== null && keyValue !== undefined && keyValue !== '') return String(keyValue);
@@ -178,7 +224,7 @@ export const Table = memo(function Table({node, surfaceId}: A2UIComponentProps<a
                             className={[alignClass, ellipsisClass].filter(Boolean).join(' ')}
                             style={widthStyle}
                           >
-                            {normalizeCellValue(row[column.key])}
+                            {renderCell(row[column.key])}
                           </td>
                         );
                       })}

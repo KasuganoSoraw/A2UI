@@ -698,6 +698,45 @@ textarea {
   white-space: nowrap;
 }
 
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-1,
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-2,
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-3,
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-4,
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-5 {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 1px 8px;
+  line-height: 1.5;
+}
+
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-1 {
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
+}
+
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-2 {
+  background: rgba(99, 102, 241, 0.12);
+  color: #4f46e5;
+}
+
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-3 {
+  background: rgba(14, 165, 233, 0.14);
+  color: #0369a1;
+}
+
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-4 {
+  background: rgba(249, 115, 22, 0.16);
+  color: #c2410c;
+  font-weight: 600;
+}
+
+.render-surface .a2ui-table-element .a2ui-table-cell-weight-5 {
+  background: rgba(239, 68, 68, 0.18);
+  color: #b91c1c;
+  font-weight: 600;
+}
+
 .render-surface .a2ui-table-empty {
   color: #909399;
   text-align: center;

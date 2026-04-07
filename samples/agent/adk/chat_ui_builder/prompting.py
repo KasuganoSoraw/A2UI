@@ -69,7 +69,7 @@ PLANNING_DELTA_CONTRACT = [
         'id': 'string',
         'region_id': 'string',
         'columns': 'list of {key,label,width?,align?(left|center|right),ellipsis?}',
-        'rows': 'list of row objects keyed by column key',
+        'rows': 'list of row objects keyed by column key; each cell may be a primitive value or {value, visual_weight?}',
         'title': 'optional string',
         'row_key': 'optional string',
         'striped': 'optional boolean',
@@ -188,19 +188,22 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 15. `add_region_table` 是内容事件，不是新的 role，也不是新的 presentation/layout。
 16. `add_region_table` 适用于 `details / summary / supporting / insights` 中的二维结构化记录展示；不适用于 `workflow / form / actions`。
 17. 当输入是多行多列结构化数据且用户需要逐行比较时，优先使用 `add_region_table`，不要把整表改写成长段文本。
-18. `add_region_line_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
-19. `add_region_line_chart` 适用于 `summary / details / insights / supporting`；不适用于 `workflow / form / actions`。
-20. 当输入主要是数值随时间或类别变化趋势时，优先使用 `add_region_line_chart`，不要把明显趋势数据改写成长段文本。
-21. `add_region_pie_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
-22. `add_region_pie_chart` 适用于 `summary / details / insights / supporting`。
-23. 当输入主要目标是展示占比、构成、份额分布时，优先使用 `add_region_pie_chart`，不要把明显占比型数据硬改写成长段文本。
-24. `add_region_mermaid` 是内容事件，不是新的 role，也不是新的 presentation/layout；不要为 Mermaid 的每种图单独创建新 event。
-25. Mermaid 只用于当前原生组件不适合表达的关系/结构图；若 `add_region_flow_diagram` 足够表达流程/决策流，优先使用原生 flow diagram。
-26. `sequenceDiagram` / `stateDiagram-v2` 更适合 Mermaid；`erDiagram` / `classDiagram` 更适合 Mermaid 的结构表达。
-27. role 限制：`flowchart` / `sequenceDiagram` / `stateDiagram-v2` 只允许放在 `workflow` 或 `details`；`erDiagram` / `classDiagram` 只允许放在 `details` 或 `supporting`。
-28. 不要在 `hero`、`summary`、`list`、`actions`、`form` 中使用 `add_region_mermaid`。
-29. Mermaid 与 `add_region_flow_diagram` 对同一批流程数据默认二选一，不要重复表达。
-30. Mermaid 与 table 对同一批结构信息默认二选一，不要重复表达。
+18. 当表格单元格表达程度、等级、优先级、风险、状态强弱等信息时，可将该 cell 输出为 `{"value": <primitive>, "visual_weight": <1..5>}`。
+19. `visual_weight` 仅允许 1 到 5，值越大表示越需要强调；若无需强调，cell 应直接输出 primitive value。
+20. 禁止输出 CSS class、颜色名或样式字符串；样式由前端根据 `visual_weight` 自行映射。
+21. `add_region_line_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
+22. `add_region_line_chart` 适用于 `summary / details / insights / supporting`；不适用于 `workflow / form / actions`。
+23. 当输入主要是数值随时间或类别变化趋势时，优先使用 `add_region_line_chart`，不要把明显趋势数据改写成长段文本。
+24. `add_region_pie_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。
+25. `add_region_pie_chart` 适用于 `summary / details / insights / supporting`。
+26. 当输入主要目标是展示占比、构成、份额分布时，优先使用 `add_region_pie_chart`，不要把明显占比型数据硬改写成长段文本。
+27. `add_region_mermaid` 是内容事件，不是新的 role，也不是新的 presentation/layout；不要为 Mermaid 的每种图单独创建新 event。
+28. Mermaid 只用于当前原生组件不适合表达的关系/结构图；若 `add_region_flow_diagram` 足够表达流程/决策流，优先使用原生 flow diagram。
+29. `sequenceDiagram` / `stateDiagram-v2` 更适合 Mermaid；`erDiagram` / `classDiagram` 更适合 Mermaid 的结构表达。
+30. role 限制：`flowchart` / `sequenceDiagram` / `stateDiagram-v2` 只允许放在 `workflow` 或 `details`；`erDiagram` / `classDiagram` 只允许放在 `details` 或 `supporting`。
+31. 不要在 `hero`、`summary`、`list`、`actions`、`form` 中使用 `add_region_mermaid`。
+32. Mermaid 与 `add_region_flow_diagram` 对同一批流程数据默认二选一，不要重复表达。
+33. Mermaid 与 table 对同一批结构信息默认二选一，不要重复表达。
 
 ## `usage_hint` 语义（通用展示提示）
 - `h1`：页面或区块中最重要的主标题

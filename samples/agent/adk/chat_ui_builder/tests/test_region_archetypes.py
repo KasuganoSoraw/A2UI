@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -383,6 +386,55 @@ def test_add_region_table_schema_can_be_parsed() -> None:
   assert parsed.rows[0]['name'] == '王小虎'
 
 
+def test_add_region_table_schema_accepts_object_cell_with_visual_weight() -> None:
+  parsed = SKELETON_DELTA_ADAPTER.validate_python(
+      {
+          'event': 'add_region_table',
+          'id': 'risk_table',
+          'region_id': 'details_region',
+          'columns': [
+              {'key': 'alarmLevel', 'label': '告警等级'},
+          ],
+          'rows': [
+              {
+                  'alarmLevel': {
+                      'value': '3',
+                      'visual_weight': 4,
+                  }
+              },
+          ],
+      }
+  )
+
+  assert isinstance(parsed, AddRegionTableDelta)
+  alarm_cell = parsed.rows[0]['alarmLevel']
+  assert hasattr(alarm_cell, 'value')
+  assert getattr(alarm_cell, 'value') == '3'
+  assert getattr(alarm_cell, 'visual_weight') == 4
+
+
+def test_add_region_table_schema_rejects_visual_weight_out_of_range() -> None:
+  with pytest.raises(Exception):
+    SKELETON_DELTA_ADAPTER.validate_python(
+        {
+            'event': 'add_region_table',
+            'id': 'risk_table',
+            'region_id': 'details_region',
+            'columns': [
+                {'key': 'alarmLevel', 'label': '告警等级'},
+            ],
+            'rows': [
+                {
+                    'alarmLevel': {
+                        'value': '3',
+                        'visual_weight': 8,
+                    }
+                },
+            ],
+        }
+    )
+
+
 def test_add_region_table_routes_to_default_text_slot_and_emits_table_component() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Table page'))
@@ -424,6 +476,42 @@ def test_add_region_table_routes_to_default_text_slot_and_emits_table_component(
   assert table_spec_string is not None
   assert '"columns"' in table_spec_string
   assert '"rows"' in table_spec_string
+
+
+def test_add_region_table_preserves_object_cell_in_spec_json() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Table page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='详情'))
+
+  frames = compiler.apply(
+      AddRegionTableDelta(
+          event='add_region_table',
+          id='risk_table',
+          region_id='details_region',
+          columns=[
+              {'key': 'alarmLevel', 'label': '告警等级'},
+          ],
+          rows=[
+              {
+                  'alarmLevel': {
+                      'value': '3',
+                      'visual_weight': 4,
+                  }
+              },
+          ],
+      )
+  )
+
+  table_spec_string = None
+  for frame in frames:
+    if frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/risk_table':
+      for entry in frame.dataModelUpdate.contents:
+        if entry.key == 'spec':
+          table_spec_string = entry.valueString
+
+  assert table_spec_string is not None
+  spec = json.loads(table_spec_string)
+  assert spec['rows'][0]['alarmLevel'] == {'value': '3', 'visual_weight': 4}
 
 
 def test_add_region_table_can_coexist_with_text_and_fact_in_same_region() -> None:

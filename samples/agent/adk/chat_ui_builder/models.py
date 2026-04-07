@@ -108,12 +108,17 @@ class TableColumnSpec(BaseModel):
   ellipsis: bool | None = None
 
 
+class TableCellSpec(BaseModel):
+  value: str | int | float | bool | None
+  visual_weight: int | None = Field(default=None, ge=1, le=5)
+
+
 class AddRegionTableDelta(BaseModel):
   event: Literal["add_region_table"]
   id: str
   region_id: str
   columns: list[TableColumnSpec]
-  rows: list[dict[str, str | int | float | bool | None]]
+  rows: list[dict[str, str | int | float | bool | None | TableCellSpec]]
   title: str | None = None
   row_key: str | None = None
   striped: bool | None = None
