@@ -188,7 +188,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是“
 15. `add_region_table` 是内容事件，不是新的 role，也不是新的 presentation/layout。
 16. `add_region_table` 适用于 `details / summary / supporting / insights` 中的二维结构化记录展示；不适用于 `workflow / form / actions`。
 17. 当输入是多行多列结构化数据且用户需要逐行比较时，优先使用 `add_region_table`，不要把整表改写成长段文本。
-18. 当表格单元格表达程度、等级、优先级、风险、状态强弱等信息时，可将该 cell 输出为 `{"value": <primitive>, "visual_weight": <1..5>}`。
+18. 当表格单元格表达程度、等级、优先级、风险、状态强弱等信息时，可将该 cell 输出为普通对象 `{"value": <primitive>, "visual_weight": <1..5>}`。
 19. `visual_weight` 仅允许 1 到 5，值越大表示越需要强调；若无需强调，cell 应直接输出 primitive value。
 20. 禁止输出 CSS class、颜色名或样式字符串；样式由前端根据 `visual_weight` 自行映射。
 21. `add_region_line_chart` 是内容事件，不是新的 role，也不是新的 presentation/layout。

@@ -109,19 +109,17 @@ function isTableCellObject(value: unknown): value is TableCellObject {
   return primitiveValid && weightValid;
 }
 
-function normalizeVisualWeight(visualWeight: number | undefined): number | null {
-  if (typeof visualWeight !== 'number' || !Number.isFinite(visualWeight)) return null;
-  const normalized = Math.trunc(visualWeight);
-  if (normalized < 1 || normalized > 5) return null;
-  return normalized;
+export function getCellWeightClass(visualWeight: number | undefined): string | undefined {
+  if (typeof visualWeight !== 'number' || !Number.isInteger(visualWeight)) return undefined;
+  if (visualWeight < 1 || visualWeight > 5) return undefined;
+  return `a2ui-table-cell-weight-${visualWeight}`;
 }
 
 export function resolveTableCellRender(cell: TableCellValue | undefined): {text: string; weightClassName?: string} {
   if (isTableCellObject(cell)) {
-    const weight = normalizeVisualWeight(cell.visual_weight);
     return {
       text: normalizeCellValue(cell.value),
-      weightClassName: weight ? `a2ui-table-cell-weight-${weight}` : undefined,
+      weightClassName: getCellWeightClass(cell.visual_weight),
     };
   }
   return {text: normalizeCellValue(cell)};

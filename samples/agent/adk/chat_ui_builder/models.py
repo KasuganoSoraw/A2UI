@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, RootModel, TypeAdapter, ConfigDict
+from pydantic import BaseModel, Field, RootModel, TypeAdapter, ConfigDict, field_validator
 
 
 class Theme(BaseModel):
@@ -108,21 +108,45 @@ class TableColumnSpec(BaseModel):
   ellipsis: bool | None = None
 
 
-class TableCellSpec(BaseModel):
-  value: str | int | float | bool | None
-  visual_weight: int | None = Field(default=None, ge=1, le=5)
-
-
 class AddRegionTableDelta(BaseModel):
   event: Literal["add_region_table"]
   id: str
   region_id: str
   columns: list[TableColumnSpec]
-  rows: list[dict[str, str | int | float | bool | None | TableCellSpec]]
+  rows: list[dict[str, object]]
   title: str | None = None
   row_key: str | None = None
   striped: bool | None = None
   bordered: bool | None = None
+
+  @field_validator("rows")
+  @classmethod
+  def validate_rows(cls, rows: list[dict[str, object]]) -> list[dict[str, object]]:
+    for row in rows:
+      if not isinstance(row, dict):
+        raise ValueError("table row must be an object")
+      for key, cell in row.items():
+        if cell is None or isinstance(cell, (str, int, float, bool)):
+          continue
+        if not isinstance(cell, dict):
+          raise ValueError(f"table cell '{key}' must be primitive or object")
+        allowed_keys = {"value", "visual_weight"}
+        unknown_keys = set(cell.keys()) - allowed_keys
+        if unknown_keys:
+          raise ValueError(f"table cell '{key}' contains unsupported keys: {sorted(unknown_keys)}")
+        if "value" not in cell:
+          raise ValueError(f"table cell '{key}' object must include value")
+        value = cell["value"]
+        if value is not None and not isinstance(value, (str, int, float, bool)):
+          raise ValueError(f"table cell '{key}'.value must be primitive")
+        visual_weight = cell.get("visual_weight")
+        if visual_weight is None:
+          continue
+        if isinstance(visual_weight, bool) or not isinstance(visual_weight, int):
+          raise ValueError(f"table cell '{key}'.visual_weight must be int")
+        if visual_weight < 1 or visual_weight > 5:
+          raise ValueError(f"table cell '{key}'.visual_weight must be in 1..5")
+    return rows
 
 
 class LineChartSettings(BaseModel):

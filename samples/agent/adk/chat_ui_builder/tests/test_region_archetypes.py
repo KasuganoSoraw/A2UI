@@ -408,9 +408,29 @@ def test_add_region_table_schema_accepts_object_cell_with_visual_weight() -> Non
 
   assert isinstance(parsed, AddRegionTableDelta)
   alarm_cell = parsed.rows[0]['alarmLevel']
-  assert hasattr(alarm_cell, 'value')
-  assert getattr(alarm_cell, 'value') == '3'
-  assert getattr(alarm_cell, 'visual_weight') == 4
+  assert isinstance(alarm_cell, dict)
+  assert alarm_cell == {'value': '3', 'visual_weight': 4}
+
+
+def test_add_region_table_schema_rejects_object_cell_without_value() -> None:
+  with pytest.raises(Exception):
+    SKELETON_DELTA_ADAPTER.validate_python(
+        {
+            'event': 'add_region_table',
+            'id': 'risk_table',
+            'region_id': 'details_region',
+            'columns': [
+                {'key': 'alarmLevel', 'label': '告警等级'},
+            ],
+            'rows': [
+                {
+                    'alarmLevel': {
+                        'visual_weight': 4,
+                    }
+                },
+            ],
+        }
+    )
 
 
 def test_add_region_table_schema_rejects_visual_weight_out_of_range() -> None:
@@ -510,7 +530,9 @@ def test_add_region_table_preserves_object_cell_in_spec_json() -> None:
           table_spec_string = entry.valueString
 
   assert table_spec_string is not None
+  json.loads(table_spec_string)
   spec = json.loads(table_spec_string)
+  assert isinstance(spec['rows'][0]['alarmLevel'], dict)
   assert spec['rows'][0]['alarmLevel'] == {'value': '3', 'visual_weight': 4}
 
 

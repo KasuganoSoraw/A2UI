@@ -22,3 +22,4 @@
 - 2026-04-02 任务：新增 Mermaid 全链路事件（add_region_mermaid/add_mermaid）；后端按重组件链路完成 schema/skeleton/frame/prompt 接入并按 diagram_type 路由 flow/text，前端新增 Mermaid 组件与样式，补充 Mermaid 路由与 spec 字段测试。
 - 2026-04-02 任务：修复前端 Mermaid 定义透传逻辑；移除 buildMermaidSource 对 diagramType 的前缀拼接，完整 definition 改为原样 trim 后渲染，避免 graph/flowchart 双前缀导致渲染失败。
 - 2026-04-07 任务：完成 table cell schema 升级；后端新增 {value,visual_weight?}（1..5）校验并保持 spec_json 原样透传，更新 table prompt 约束；前端 Table 支持对象单元格渲染并按 visual_weight 映射样式 class，补充后端/前端最小测试。
+- 2026-04-07 任务：修复 table richer cell 序列化问题；移除 TableCellSpec，改为 primitive/普通dict（{value,visual_weight?}）轻校验并原样透传，避免 json.dumps 遇到 Pydantic 对象报错；前端补充 getCellWeightClass 固定映射与测试。

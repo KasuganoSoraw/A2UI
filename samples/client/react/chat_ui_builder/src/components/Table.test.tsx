@@ -3,7 +3,7 @@ import {render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import {describe, expect, it, vi} from 'vitest';
 
-import {Table, resolveTableCellRender} from './Table';
+import {Table, getCellWeightClass, resolveTableCellRender} from './Table';
 
 vi.mock('@a2ui/react', () => ({
   useA2UIComponent: () => ({
@@ -22,6 +22,19 @@ describe('resolveTableCellRender', () => {
     const rendered = resolveTableCellRender({value: '3', visual_weight: 4});
     expect(rendered.text).toBe('3');
     expect(rendered.weightClassName).toBe('a2ui-table-cell-weight-4');
+  });
+});
+
+describe('getCellWeightClass', () => {
+  it('maps 1..5 to fixed class names', () => {
+    expect(getCellWeightClass(1)).toBe('a2ui-table-cell-weight-1');
+    expect(getCellWeightClass(5)).toBe('a2ui-table-cell-weight-5');
+  });
+
+  it('returns undefined for out-of-range values', () => {
+    expect(getCellWeightClass(0)).toBeUndefined();
+    expect(getCellWeightClass(6)).toBeUndefined();
+    expect(getCellWeightClass(3.2)).toBeUndefined();
   });
 });
 
