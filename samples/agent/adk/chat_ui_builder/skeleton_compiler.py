@@ -10,7 +10,6 @@ from models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
-    AddFlowDiagramDelta,
     AddImageDelta,
     AddInputDelta,
     AddKeyValueDelta,
@@ -18,7 +17,6 @@ from models import (
     AddRegionDelta,
     AddRegionDividerDelta,
     AddRegionFactDelta,
-    AddRegionFlowDiagramDelta,
     AddRegionImageDelta,
     AddRegionInputDelta,
     AddRegionLineChartDelta,
@@ -84,7 +82,6 @@ class SkeletonRuntime:
   role_slots: dict[str, str] = field(default_factory=dict)
   regions: dict[str, RegionBinding] = field(default_factory=dict)
   pending_region_deltas: dict[str, list[PendingRegionDelta]] = field(default_factory=dict)
-  flow_region_overrides: dict[str, str] = field(default_factory=dict)
   created_buckets: set[str] = field(default_factory=set)
   page_title: str = ''
 
@@ -106,11 +103,6 @@ class SkeletonRuntime:
   def bucket_order(bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
 
-  @staticmethod
-  def normalize_text(value: str) -> str:
-    return ''.join(ch.lower() for ch in value if ch.isalnum())
-
-
 class RegionRouter:
   def __init__(self, runtime: SkeletonRuntime) -> None:
     self.runtime = runtime
@@ -120,7 +112,6 @@ class RegionRouter:
       region_id: str,
       slot_name: str,
       delta_builder: Callable[[str], object],
-      text_coercer: Callable[[RegionBinding, AddTextDelta], AddTextDelta | None],
   ) -> list[A2UIFrame]:
     if region_id not in self.runtime.regions:
       logger.info('Region %s not ready; queueing %s', region_id, slot_name)
@@ -131,26 +122,14 @@ class RegionRouter:
 
     binding = self.runtime.regions[region_id]
     low_level_delta = delta_builder(binding.parent_for(slot_name))
-    if isinstance(low_level_delta, AddTextDelta):
-      low_level_delta = text_coercer(binding, low_level_delta)
-      if low_level_delta is None:
-        return []
     return self.runtime.frame_compiler.apply(low_level_delta)
 
-  def flush_pending(
-      self,
-      region_id: str,
-      text_coercer: Callable[[RegionBinding, AddTextDelta], AddTextDelta | None],
-  ) -> list[A2UIFrame]:
+  def flush_pending(self, region_id: str) -> list[A2UIFrame]:
     binding = self.runtime.regions[region_id]
     queued = self.runtime.pending_region_deltas.pop(region_id, [])
     frames: list[A2UIFrame] = []
     for item in queued:
       low_level_delta = item.delta_builder(binding.parent_for(item.slot_name))
-      if isinstance(low_level_delta, AddTextDelta):
-        low_level_delta = text_coercer(binding, low_level_delta)
-        if low_level_delta is None:
-          continue
       frames.extend(self.runtime.frame_compiler.apply(low_level_delta))
     return frames
 
@@ -188,7 +167,7 @@ class RegionHandler:
         slot_parents=result.slot_parents,
     )
     frames.extend(result.frames)
-    frames.extend(self.router.flush_pending(delta.id, self._coerce_text_for_binding))
+    frames.extend(self.router.flush_pending(delta.id))
     return frames
 
   def _slot_for_role(self, role: str) -> str:
@@ -210,26 +189,6 @@ class RegionHandler:
     )
     self.runtime.created_buckets.add(bucket_id)
     return frames
-
-  def _is_title_overlap(self, text: str) -> bool:
-    normalized_text = SkeletonRuntime.normalize_text(text)
-    normalized_title = SkeletonRuntime.normalize_text(self.runtime.page_title)
-    if not normalized_text or not normalized_title:
-      return False
-    if normalized_text == normalized_title:
-      return True
-    shorter, longer = sorted((normalized_text, normalized_title), key=len)
-    if shorter and shorter in longer:
-      overlap_ratio = len(shorter) / len(longer)
-      return overlap_ratio >= 0.9
-    return False
-
-  def _coerce_text_for_binding(self, binding: RegionBinding, delta: AddTextDelta) -> AddTextDelta | None:
-    if binding.role == 'hero' and delta.usage_hint == 'h1':
-      if self._is_title_overlap(delta.text):
-        logger.info('Dropping duplicate hero h1 text region=%s text=%s', binding.region_id, delta.text)
-        return None
-    return delta
 
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
     role_defaults: dict[str, ArrangementSemantics] = {
@@ -267,7 +226,6 @@ class PlanHandler:
     self.runtime.role_slots = SkeletonRuntime.role_slots_recipe()
     self.runtime.regions = {}
     self.runtime.pending_region_deltas = {}
-    self.runtime.flow_region_overrides = {}
     self.runtime.created_buckets = set()
     self.runtime.page_title = delta.title
 
@@ -323,7 +281,7 @@ class ContentHandler:
     def build(parent_id: str) -> object:
       return resolved.model_copy(update={'parent_id': parent_id})
 
-    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'text', build)
 
   def handle_table(self, delta: AddRegionTableDelta) -> list[A2UIFrame]:
     table_spec = {
@@ -344,7 +302,7 @@ class ContentHandler:
           spec_json=table_spec_json,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'text', build)
 
   def handle_line_chart(self, delta: AddRegionLineChartDelta) -> list[A2UIFrame]:
     chart_spec = {
@@ -363,7 +321,7 @@ class ContentHandler:
           spec_json=chart_spec_json,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'text', build)
 
   def handle_pie_chart(self, delta: AddRegionPieChartDelta) -> list[A2UIFrame]:
     chart_spec = {
@@ -382,7 +340,7 @@ class ContentHandler:
           spec_json=chart_spec_json,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'text', build)
 
   def handle_mermaid(self, delta: AddRegionMermaidDelta) -> list[A2UIFrame]:
     mermaid_spec = {
@@ -401,7 +359,7 @@ class ContentHandler:
           spec_json=mermaid_spec_json,
       )
 
-    return self.router.apply_to_region(delta.region_id, diagram_slot, build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, diagram_slot, build)
 
   def handle_fact(self, delta: AddRegionFactDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
@@ -413,7 +371,7 @@ class ContentHandler:
           value=delta.value,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'fact', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'fact', build)
 
   def handle_image(self, delta: AddRegionImageDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
@@ -425,7 +383,7 @@ class ContentHandler:
           usage_hint=delta.usage_hint,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'image', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'image', build)
 
   def handle_action(self, delta: AddRegionActionDelta) -> list[A2UIFrame]:
     slot_name = 'action_primary' if delta.primary else 'action_secondary'
@@ -440,7 +398,7 @@ class ContentHandler:
           primary=delta.primary,
       )
 
-    return self.router.apply_to_region(delta.region_id, slot_name, build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, slot_name, build)
 
   def handle_input(self, delta: AddRegionInputDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
@@ -460,7 +418,7 @@ class ContentHandler:
           enable_time=delta.enable_time,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'input', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'input', build)
 
   def handle_divider(self, delta: AddRegionDividerDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
@@ -470,7 +428,7 @@ class ContentHandler:
           parent_id=parent_id,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'divider', build, self.region_handler._coerce_text_for_binding)
+    return self.router.apply_to_region(delta.region_id, 'divider', build)
 
   def handle_list_item(self, delta: AppendRegionListItemDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
@@ -484,57 +442,7 @@ class ContentHandler:
           detail_usage_hint=delta.detail_usage_hint,
       )
 
-    return self.router.apply_to_region(delta.region_id, 'list_item', build, self.region_handler._coerce_text_for_binding)
-
-  def handle_flow(self, delta: AddRegionFlowDiagramDelta) -> list[A2UIFrame]:
-    flow_region_id, prefix_frames = self._resolve_flow_region(delta.region_id)
-
-    def build(parent_id: str) -> object:
-      return AddFlowDiagramDelta(
-          event='add_flow_diagram',
-          id=delta.id,
-          parent_id=parent_id,
-          title=delta.title,
-          nodes=delta.nodes,
-          edges=delta.edges,
-      )
-
-    frames = list(prefix_frames)
-    frames.extend(self.router.apply_to_region(flow_region_id, 'flow', build, self.region_handler._coerce_text_for_binding))
-    return frames
-
-  def _resolve_flow_region(self, source_region_id: str) -> tuple[str, list[A2UIFrame]]:
-    if source_region_id in self.runtime.regions and self.runtime.regions[source_region_id].role == 'workflow':
-      return source_region_id, []
-
-    target_region_id = self.runtime.flow_region_overrides.get(source_region_id)
-    if target_region_id is None:
-      base_id = f'{source_region_id}_workflow_region'
-      target_region_id = base_id
-      suffix = 2
-      while target_region_id in self.runtime.regions and self.runtime.regions[target_region_id].role != 'workflow':
-        target_region_id = f'{base_id}_{suffix}'
-        suffix += 1
-      self.runtime.flow_region_overrides[source_region_id] = target_region_id
-
-    if target_region_id in self.runtime.regions:
-      return target_region_id, []
-
-    title = '流程图'
-    if source_region_id in self.runtime.regions and self.runtime.regions[source_region_id].role != 'workflow':
-      title = f'{source_region_id}流程图'
-
-    frames = self.region_handler.handle(
-        AddRegionDelta(
-            event='add_region',
-            id=target_region_id,
-            role='workflow',
-            title=title,
-            description='为流程图重组件自动创建的独立区域。',
-            importance='medium',
-        )
-    )
-    return target_region_id, frames
+    return self.router.apply_to_region(delta.region_id, 'list_item', build)
 
 
 class SkeletonCompiler:
@@ -560,7 +468,6 @@ class SkeletonCompiler:
         AddRegionInputDelta: lambda delta: self.content_handler.handle_input(delta),
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
         AppendRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
-        AddRegionFlowDiagramDelta: lambda delta: self.content_handler.handle_flow(delta),
     }
 
   @property

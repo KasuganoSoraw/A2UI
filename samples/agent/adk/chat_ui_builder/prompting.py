@@ -107,14 +107,6 @@ PLANNING_DELTA_CONTRACT = [
         'diagram_type': 'flowchart | sequenceDiagram | stateDiagram-v2 | erDiagram | classDiagram',
         'definition': 'string, mermaid source',
     },
-    {
-        'event': 'add_region_flow_diagram',
-        'id': 'string',
-        'region_id': 'string',
-        'title': 'string',
-        'nodes': 'list of {id,label,column,lane,kind(start|process|decision|end)}',
-        'edges': 'list of {from_id,to_id,label?}',
-    },
     {'event': 'finalize_plan'},
 ]
 
@@ -167,8 +159,8 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是展
 
 主阅读目标与重组件映射：
 - 时间顺序 / 事件演化为主：优先 `list`，必要时 `presentation.variant="timeline"`，不要再补 table
-- 流程、状态流转、决策分支、调用链路为主：优先 `add_region_flow_diagram`
-- 若原生 `add_region_flow_diagram` 不适合表达，而需要时序图 / 状态图 / 类关系 / 实体关系时，才使用 `add_region_mermaid`
+- 流程、状态流转、决策分支、调用链路为主：优先 `add_region_mermaid`
+- Mermaid `flowchart` / `sequenceDiagram` / `stateDiagram-v2` 用于流程/时序/状态表达
 - 数值随时间或类别变化趋势为主：优先 `add_region_line_chart`
 - 占比、构成、份额分布为主：优先 `add_region_pie_chart`
 - 多字段逐行对比确实是主要目标，且其他重组件都不适合时，才使用 `add_region_table`
@@ -188,13 +180,12 @@ table 使用限制：
 Mermaid 使用限制：
 1. `add_region_mermaid` 是重组件，不是新的 role。
 2. Mermaid 只用于当前原生组件不适合表达的关系/结构图。
-3. 若 `add_region_flow_diagram` 足够表达流程/决策流，优先使用原生 flow diagram，不要改用 Mermaid。
-4. `sequenceDiagram` / `stateDiagram-v2` 更适合 Mermaid。
-5. `erDiagram` / `classDiagram` 更适合 Mermaid 的结构表达。
-6. role 限制：
+3. `sequenceDiagram` / `stateDiagram-v2` 更适合 Mermaid。
+4. `erDiagram` / `classDiagram` 更适合 Mermaid 的结构表达。
+5. role 限制：
    - `flowchart` / `sequenceDiagram` / `stateDiagram-v2` 只允许放在 `workflow` 或 `details`
    - `erDiagram` / `classDiagram` 只允许放在 `details` 或 `supporting`
-7. 不要在 `hero`、`summary`、`list`、`actions`、`form` 中使用 `add_region_mermaid`。
+6. 不要在 `hero`、`summary`、`list`、`actions`、`form` 中使用 `add_region_mermaid`。
 
 页面组织规则：
 1. 先输出 `add_region` 建立骨架，再向各 `region_id` 填充内容。

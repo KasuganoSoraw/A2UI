@@ -234,15 +234,6 @@ class FlowDiagramEdge(BaseModel):
   label: str | None = None
 
 
-class AddFlowDiagramDelta(BaseModel):
-  event: Literal["add_flow_diagram"]
-  id: str
-  parent_id: str
-  title: str
-  nodes: list[FlowDiagramNode]
-  edges: list[FlowDiagramEdge]
-
-
 class AddTableDelta(BaseModel):
   event: Literal["add_table"]
   id: str
@@ -301,15 +292,6 @@ class AddDividerDelta(BaseModel):
   parent_id: str
 
 
-class AddRegionFlowDiagramDelta(BaseModel):
-  event: Literal["add_region_flow_diagram"]
-  id: str
-  region_id: str
-  title: str
-  nodes: list[FlowDiagramNode]
-  edges: list[FlowDiagramEdge]
-
-
 class AppendListItemDelta(BaseModel):
   event: Literal["append_list_item"]
   id: str
@@ -338,7 +320,6 @@ SkeletonDelta = Annotated[
     | AddRegionLineChartDelta
     | AddRegionPieChartDelta
     | AddRegionMermaidDelta
-    | AddRegionFlowDiagramDelta
     | FinalizeDelta,
     Field(discriminator="event"),
 ]
@@ -353,7 +334,6 @@ Delta = Annotated[
     | AddKeyValueDelta
     | AddImageDelta
     | AddButtonDelta
-    | AddFlowDiagramDelta
     | AddTableDelta
     | AddLineChartDelta
     | AddPieChartDelta

@@ -14,13 +14,10 @@ from models import (
     AddRegionActionDelta,
     AddRegionDelta,
     AddRegionFactDelta,
-    AddRegionFlowDiagramDelta,
     AddRegionLineChartDelta,
     AddRegionMermaidDelta,
     AddRegionPieChartDelta,
     AddRegionTableDelta,
-    FlowDiagramEdge,
-    FlowDiagramNode,
     InitPlanDelta,
     AddRegionTextDelta,
     AppendRegionListItemDelta,
@@ -147,39 +144,6 @@ def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   assert 'details_region_action_row' in component_ids
   assert 'details_cta' in component_ids
   assert 'details_fact' in component_ids
-
-
-def test_flow_diagram_uses_dedicated_workflow_region_when_source_region_is_not_workflow() -> None:
-  compiler = SkeletonCompiler()
-  compiler.apply(InitPlanDelta(event='init_plan', title='Flow page'))
-  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='Details'))
-
-  flow_frames = compiler.apply(
-      AddRegionFlowDiagramDelta(
-          event='add_region_flow_diagram',
-          id='approval_flow',
-          region_id='details_region',
-          title='审批流程',
-          nodes=[
-              FlowDiagramNode(id='start', label='开始', column=0, kind='start'),
-              FlowDiagramNode(id='review', label='审批', column=1, kind='process'),
-              FlowDiagramNode(id='end', label='结束', column=2, kind='end'),
-          ],
-          edges=[
-              FlowDiagramEdge(from_id='start', to_id='review'),
-              FlowDiagramEdge(from_id='review', to_id='end'),
-          ],
-      )
-  )
-
-  assert 'details_region_workflow_region' in compiler.regions
-  assert compiler.regions['details_region_workflow_region'].role == 'workflow'
-  assert compiler.regions['details_region'].role == 'details'
-
-  flow_parent_path = compiler.regions['details_region_workflow_region'].parent_for('flow')
-  flow_component_ids = _slot_component_ids(flow_frames)
-  assert flow_parent_path == 'details_region_workflow_region_flow'
-  assert 'approval_flow' in flow_component_ids
 
 
 def test_warning_usage_hint_is_preserved_in_compiled_text_component() -> None:

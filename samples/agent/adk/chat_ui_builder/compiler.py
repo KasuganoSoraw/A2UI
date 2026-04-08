@@ -9,7 +9,6 @@ from models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
-    AddFlowDiagramDelta,
     AddImageDelta,
     AddInputDelta,
     AddKeyValueDelta,
@@ -64,8 +63,6 @@ class FrameCompiler:
       return self._add_image(delta)
     if isinstance(delta, AddButtonDelta):
       return self._add_button(delta)
-    if isinstance(delta, AddFlowDiagramDelta):
-      return self._add_flow_diagram(delta)
     if isinstance(delta, AddInputDelta):
       return self._add_input(delta)
     if isinstance(delta, AddDividerDelta):
@@ -471,38 +468,6 @@ class FrameCompiler:
     return prefix_frames + [
         self._surface_update([parent_update, button, label]),
         self._data_update(f'/content/{button_id}', [DataMapEntry(key='label', valueString=delta.label)]),
-    ]
-
-  def _add_flow_diagram(self, delta: AddFlowDiagramDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', '流程图')
-    parent = self._ensure_container(parent_id)
-    diagram_id = self._register_id(delta.id)
-    if diagram_id == parent.component_id:
-      raise ValueError(f'Flow diagram id {diagram_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, diagram_id)
-    parent_update = self._container_component(parent)
-    diagram_component = ComponentNode(
-        id=diagram_id,
-        component={
-            'FlowDiagram': {
-                'spec': {'path': f'/content/{diagram_id}/spec'},
-            }
-        },
-    )
-    spec_json = json.dumps(
-        {
-            'title': delta.title,
-            'nodes': [node.model_dump() for node in delta.nodes],
-            'edges': [edge.model_dump() for edge in delta.edges],
-        },
-        ensure_ascii=False,
-    )
-    return prefix_frames + [
-        self._surface_update([parent_update, diagram_component]),
-        self._data_update(
-            f'/content/{diagram_id}',
-            [DataMapEntry(key='spec', valueString=spec_json)],
-        ),
     ]
 
   def _add_table(self, delta: AddTableDelta) -> list[A2UIFrame]:
