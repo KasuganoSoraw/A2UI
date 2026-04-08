@@ -24,8 +24,8 @@ from models import (
     AddRegionLineChartDelta,
     AddRegionMermaidDelta,
     AddRegionPieChartDelta,
-    AddRegionTextDelta,
     AddRegionTableDelta,
+    AddRegionTextDelta,
     AddLineChartDelta,
     AddMermaidDelta,
     AddPieChartDelta,
@@ -53,6 +53,7 @@ BUCKET_ORDER = {
     'actions_bucket': 80,
 }
 
+
 @dataclass
 class PendingRegionDelta:
   slot_name: str
@@ -73,263 +74,23 @@ class RegionBinding:
 
 
 @dataclass
-class LayoutRecipe:
-  role_slots: dict[str, str]
+class SkeletonRuntime:
+  frame_compiler: FrameCompiler = field(default_factory=FrameCompiler)
+  archetypes: RegionArchetypeRegistry = field(default_factory=RegionArchetypeRegistry)
+  initialized: bool = False
+  layout_hint: str = 'single_column'
+  page_kind: str = 'overview'
+  emphasis: str = 'balanced'
+  role_slots: dict[str, str] = field(default_factory=dict)
+  regions: dict[str, RegionBinding] = field(default_factory=dict)
+  pending_region_deltas: dict[str, list[PendingRegionDelta]] = field(default_factory=dict)
+  flow_region_overrides: dict[str, str] = field(default_factory=dict)
+  created_buckets: set[str] = field(default_factory=set)
+  page_title: str = ''
 
-
-class SkeletonCompiler:
-  def __init__(self) -> None:
-    self.frame_compiler = FrameCompiler()
-    self.archetypes = RegionArchetypeRegistry()
-    self.initialized = False
-    self.layout_hint = 'single_column'
-    self.page_kind = 'overview'
-    self.emphasis = 'balanced'
-    self.role_slots: dict[str, str] = {}
-    self.regions: dict[str, RegionBinding] = {}
-    self.pending_region_deltas: dict[str, list[PendingRegionDelta]] = {}
-    self.flow_region_overrides: dict[str, str] = {}
-    self.created_buckets: set[str] = set()
-    self.page_title: str = ''
-
-  def apply(self, delta: object) -> list[A2UIFrame]:
-    payload = delta.model_dump() if hasattr(delta, 'model_dump') else delta
-    logger.info('Compiling skeleton delta type=%s payload=%s', type(delta).__name__, payload)
-    if isinstance(delta, InitPlanDelta):
-      return self._init_plan(delta)
-    if isinstance(delta, AddRegionDelta):
-      return self._add_region(delta)
-    if isinstance(delta, AddRegionTextDelta):
-      resolved = self._resolve_text_delta(delta)
-      return self._apply_region_delta(
-          delta.region_id,
-          'text',
-          lambda parent_id: resolved.model_copy(update={'parent_id': parent_id}),
-      )
-    if isinstance(delta, AddRegionTableDelta):
-      table_spec = {
-          'title': delta.title,
-          'columns': [column.model_dump(exclude_none=True) for column in delta.columns],
-          'rows': delta.rows,
-          'row_key': delta.row_key,
-          'striped': delta.striped,
-          'bordered': delta.bordered,
-      }
-      table_spec_json = json.dumps(table_spec, ensure_ascii=False)
-      return self._apply_region_delta(
-          delta.region_id,
-          'text',
-          lambda parent_id: AddTableDelta(
-              event='add_table',
-              id=delta.id,
-              parent_id=parent_id,
-              spec_json=table_spec_json,
-          ),
-      )
-    if isinstance(delta, AddRegionLineChartDelta):
-      chart_spec = {
-          'title': delta.title,
-          'width': delta.width,
-          'settings': delta.settings.model_dump(exclude_none=True),
-          'chartData': delta.chart_data,
-      }
-      chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
-      return self._apply_region_delta(
-          delta.region_id,
-          'text',
-          lambda parent_id: AddLineChartDelta(
-              event='add_line_chart',
-              id=delta.id,
-              parent_id=parent_id,
-              spec_json=chart_spec_json,
-          ),
-      )
-    if isinstance(delta, AddRegionPieChartDelta):
-      chart_spec = {
-          'title': delta.title,
-          'width': delta.width,
-          'settings': delta.settings or {},
-          'chartData': [series.model_dump(exclude_none=True) for series in delta.chart_data],
-      }
-      chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
-      return self._apply_region_delta(
-          delta.region_id,
-          'text',
-          lambda parent_id: AddPieChartDelta(
-              event='add_pie_chart',
-              id=delta.id,
-              parent_id=parent_id,
-              spec_json=chart_spec_json,
-          ),
-      )
-    if isinstance(delta, AddRegionMermaidDelta):
-      mermaid_spec = {
-          'title': delta.title,
-          'diagramType': delta.diagram_type,
-          'definition': delta.definition,
-      }
-      mermaid_spec_json = json.dumps(mermaid_spec, ensure_ascii=False)
-      diagram_slot = 'flow' if delta.diagram_type in {'flowchart', 'sequenceDiagram', 'stateDiagram-v2'} else 'text'
-      return self._apply_region_delta(
-          delta.region_id,
-          diagram_slot,
-          lambda parent_id: AddMermaidDelta(
-              event='add_mermaid',
-              id=delta.id,
-              parent_id=parent_id,
-              spec_json=mermaid_spec_json,
-          ),
-      )
-    if isinstance(delta, AddRegionFactDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'fact',
-          lambda parent_id: AddKeyValueDelta(
-              event='add_key_value',
-              id=delta.id,
-              parent_id=parent_id,
-              label=delta.label,
-              value=delta.value,
-          ),
-      )
-    if isinstance(delta, AddRegionImageDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'image',
-          lambda parent_id: AddImageDelta(
-              event='add_image',
-              id=delta.id,
-              parent_id=parent_id,
-              url=delta.url,
-              usage_hint=delta.usage_hint,
-          ),
-      )
-    if isinstance(delta, AddRegionActionDelta):
-      slot_name = 'action_primary' if delta.primary else 'action_secondary'
-      return self._apply_region_delta(
-          delta.region_id,
-          slot_name,
-          lambda parent_id: AddButtonDelta(
-              event='add_button',
-              id=delta.id,
-              parent_id=parent_id,
-              label=delta.label,
-              action_name=delta.action_name,
-              primary=delta.primary,
-          ),
-      )
-    if isinstance(delta, AddRegionInputDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'input',
-          lambda parent_id: AddInputDelta(
-              event='add_input',
-              id=delta.id,
-              parent_id=parent_id,
-              component=delta.component,
-              label=delta.label,
-              path=delta.path,
-              value=delta.value,
-              text_field_type=delta.text_field_type,
-              min_value=delta.min_value,
-              max_value=delta.max_value,
-              options=delta.options,
-              enable_date=delta.enable_date,
-              enable_time=delta.enable_time,
-          ),
-      )
-    if isinstance(delta, AddRegionDividerDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'divider',
-          lambda parent_id: AddDividerDelta(
-              event='add_divider',
-              id=delta.id,
-              parent_id=parent_id,
-          ),
-      )
-    if isinstance(delta, AppendRegionListItemDelta):
-      return self._apply_region_delta(
-          delta.region_id,
-          'list_item',
-          lambda parent_id: AppendListItemDelta(
-              event='append_list_item',
-              id=delta.id,
-              parent_id=parent_id,
-              title=delta.title,
-              detail=delta.detail,
-              title_usage_hint=delta.title_usage_hint,
-              detail_usage_hint=delta.detail_usage_hint,
-          ),
-      )
-    if isinstance(delta, AddRegionFlowDiagramDelta):
-      flow_region_id, prefix_frames = self._resolve_flow_region(delta.region_id)
-      frames = list(prefix_frames)
-      frames.extend(
-          self._apply_region_delta(
-              flow_region_id,
-              'flow',
-              lambda parent_id: AddFlowDiagramDelta(
-                  event='add_flow_diagram',
-                  id=delta.id,
-                  parent_id=parent_id,
-                  title=delta.title,
-                  nodes=delta.nodes,
-                  edges=delta.edges,
-              ),
-          )
-      )
-      return frames
-    if isinstance(delta, FinalizeDelta):
-      return self._finalize()
-    return []
-
-  def _apply_low_level(self, delta: object) -> list[A2UIFrame]:
-    return self.frame_compiler.apply(delta)
-
-  def _resolve_layout(self, delta: InitPlanDelta) -> str:
-    return 'single_column'
-
-  def _init_plan(self, delta: InitPlanDelta) -> list[A2UIFrame]:
-    self.initialized = True
-    self.layout_hint = self._resolve_layout(delta)
-    self.page_kind = delta.page_kind
-    self.emphasis = delta.emphasis
-    self.role_slots = {}
-    self.regions = {}
-    self.pending_region_deltas = {}
-    self.flow_region_overrides = {}
-    self.created_buckets = set()
-    self.page_title = delta.title
-
-    frames = self._apply_low_level(
-        InitSurfaceDelta(
-            event='init_surface',
-            surface_id=delta.surface_id,
-            title=delta.title,
-            summary=delta.summary,
-            theme=delta.theme,
-        )
-    )
-    frames.extend(self._build_layout_scaffold())
-    return frames
-
-  def _build_layout_scaffold(self) -> list[A2UIFrame]:
-    recipe = self._layout_recipe()
-    frames: list[A2UIFrame] = []
-    self.role_slots = recipe.role_slots
-    logger.info(
-        'Initialized layout scaffold=%s role_slots=%s',
-        self.layout_hint,
-        self.role_slots,
-    )
-    return frames
-
-  def _slot_for_role(self, role: str) -> str:
-    return self.role_slots.get(role, 'root')
-
-  def _layout_recipe(self) -> LayoutRecipe:
-    role_slots = {
+  @staticmethod
+  def role_slots_recipe() -> dict[str, str]:
+    return {
         'hero': 'hero_bucket',
         'summary': 'summary_bucket',
         'details': 'details_bucket',
@@ -340,18 +101,119 @@ class SkeletonCompiler:
         'supporting': 'supporting_bucket',
         'actions': 'actions_bucket',
     }
-    return LayoutRecipe(role_slots=role_slots)
 
-  def _bucket_order(self, bucket_id: str) -> int:
+  @staticmethod
+  def bucket_order(bucket_id: str) -> int:
     return BUCKET_ORDER.get(bucket_id, 1000)
 
   @staticmethod
-  def _normalize_text(value: str) -> str:
+  def normalize_text(value: str) -> str:
     return ''.join(ch.lower() for ch in value if ch.isalnum())
 
+
+class RegionRouter:
+  def __init__(self, runtime: SkeletonRuntime) -> None:
+    self.runtime = runtime
+
+  def apply_to_region(
+      self,
+      region_id: str,
+      slot_name: str,
+      delta_builder: Callable[[str], object],
+      text_coercer: Callable[[RegionBinding, AddTextDelta], AddTextDelta | None],
+  ) -> list[A2UIFrame]:
+    if region_id not in self.runtime.regions:
+      logger.info('Region %s not ready; queueing %s', region_id, slot_name)
+      self.runtime.pending_region_deltas.setdefault(region_id, []).append(
+          PendingRegionDelta(slot_name=slot_name, delta_builder=delta_builder)
+      )
+      return []
+
+    binding = self.runtime.regions[region_id]
+    low_level_delta = delta_builder(binding.parent_for(slot_name))
+    if isinstance(low_level_delta, AddTextDelta):
+      low_level_delta = text_coercer(binding, low_level_delta)
+      if low_level_delta is None:
+        return []
+    return self.runtime.frame_compiler.apply(low_level_delta)
+
+  def flush_pending(
+      self,
+      region_id: str,
+      text_coercer: Callable[[RegionBinding, AddTextDelta], AddTextDelta | None],
+  ) -> list[A2UIFrame]:
+    binding = self.runtime.regions[region_id]
+    queued = self.runtime.pending_region_deltas.pop(region_id, [])
+    frames: list[A2UIFrame] = []
+    for item in queued:
+      low_level_delta = item.delta_builder(binding.parent_for(item.slot_name))
+      if isinstance(low_level_delta, AddTextDelta):
+        low_level_delta = text_coercer(binding, low_level_delta)
+        if low_level_delta is None:
+          continue
+      frames.extend(self.runtime.frame_compiler.apply(low_level_delta))
+    return frames
+
+
+class RegionHandler:
+  def __init__(self, runtime: SkeletonRuntime, router: RegionRouter) -> None:
+    self.runtime = runtime
+    self.router = router
+
+  def handle(self, delta: AddRegionDelta) -> list[A2UIFrame]:
+    if not self.runtime.initialized:
+      raise ValueError('init_plan must be emitted before add_region')
+    if delta.id in self.runtime.regions:
+      raise ValueError(f'Duplicate region id: {delta.id}')
+
+    frames = self._ensure_bucket_for_role(delta.role)
+
+    builder = self.runtime.archetypes.builder_for(delta.role)
+    context = RegionBuildContext(
+        slot_parent=self._slot_for_role(delta.role),
+        delta=delta,
+        page_kind=self.runtime.page_kind,
+        emphasis=self.runtime.emphasis,
+        layout_hint=self.runtime.layout_hint,
+        arrangement=self._arrangement_for(delta),
+        presentation_variant=delta.presentation.variant if delta.presentation else 'standard',
+    )
+    result = builder.build(context, self.runtime.frame_compiler.apply)
+    self.runtime.regions[delta.id] = RegionBinding(
+        region_id=delta.id,
+        role=delta.role,
+        section_id=delta.id,
+        archetype=result.archetype,
+        importance=delta.importance,
+        slot_parents=result.slot_parents,
+    )
+    frames.extend(result.frames)
+    frames.extend(self.router.flush_pending(delta.id, self._coerce_text_for_binding))
+    return frames
+
+  def _slot_for_role(self, role: str) -> str:
+    return self.runtime.role_slots.get(role, 'root')
+
+  def _ensure_bucket_for_role(self, role: str) -> list[A2UIFrame]:
+    bucket_id = self.runtime.role_slots.get(role)
+    if not bucket_id or bucket_id == 'root' or bucket_id in self.runtime.created_buckets:
+      return []
+
+    frames = self.runtime.frame_compiler.apply(
+        AddSectionDelta(
+            event='add_section',
+            id=bucket_id,
+            parent_id='root',
+            layout='Column',
+            order=SkeletonRuntime.bucket_order(bucket_id),
+        )
+    )
+    self.runtime.created_buckets.add(bucket_id)
+    return frames
+
   def _is_title_overlap(self, text: str) -> bool:
-    normalized_text = self._normalize_text(text)
-    normalized_title = self._normalize_text(self.page_title)
+    normalized_text = SkeletonRuntime.normalize_text(text)
+    normalized_title = SkeletonRuntime.normalize_text(self.runtime.page_title)
     if not normalized_text or not normalized_title:
       return False
     if normalized_text == normalized_title:
@@ -362,38 +224,12 @@ class SkeletonCompiler:
       return overlap_ratio >= 0.9
     return False
 
-  def _ensure_bucket_for_role(self, role: str) -> list[A2UIFrame]:
-    bucket_id = self.role_slots.get(role)
-    if not bucket_id or bucket_id == 'root' or bucket_id in self.created_buckets:
-      return []
-
-    frames = self._apply_low_level(
-        AddSectionDelta(
-            event='add_section',
-            id=bucket_id,
-            parent_id='root',
-            layout='Column',
-            order=self._bucket_order(bucket_id),
-        )
-    )
-    self.created_buckets.add(bucket_id)
-    return frames
-
   def _coerce_text_for_binding(self, binding: RegionBinding, delta: AddTextDelta) -> AddTextDelta | None:
     if binding.role == 'hero' and delta.usage_hint == 'h1':
       if self._is_title_overlap(delta.text):
         logger.info('Dropping duplicate hero h1 text region=%s text=%s', binding.region_id, delta.text)
         return None
     return delta
-
-  def _resolve_text_delta(self, delta: AddRegionTextDelta) -> AddTextDelta:
-    return AddTextDelta(
-        event='add_text',
-        id=delta.id,
-        parent_id='',
-        text=delta.text,
-        usage_hint=delta.usage_hint,
-    )
 
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
     role_defaults: dict[str, ArrangementSemantics] = {
@@ -409,35 +245,286 @@ class SkeletonCompiler:
     }
     arrangement = role_defaults.get(delta.role, ArrangementSemantics())
 
-    if delta.role in {'summary', 'insights'} and self.page_kind in {'dashboard', 'overview'}:
+    if delta.role in {'summary', 'insights'} and self.runtime.page_kind in {'dashboard', 'overview'}:
       arrangement = ArrangementSemantics(body='compact_group', facts='fact_grid', actions=arrangement.actions)
 
-    if delta.role == 'details' and self.emphasis == 'content-first':
+    if delta.role == 'details' and self.runtime.emphasis == 'content-first':
       arrangement = ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row')
 
     return arrangement
 
+
+class PlanHandler:
+  def __init__(self, runtime: SkeletonRuntime, region_handler: RegionHandler) -> None:
+    self.runtime = runtime
+    self.region_handler = region_handler
+
+  def handle_init(self, delta: InitPlanDelta) -> list[A2UIFrame]:
+    self.runtime.initialized = True
+    self.runtime.layout_hint = 'single_column'
+    self.runtime.page_kind = delta.page_kind
+    self.runtime.emphasis = delta.emphasis
+    self.runtime.role_slots = SkeletonRuntime.role_slots_recipe()
+    self.runtime.regions = {}
+    self.runtime.pending_region_deltas = {}
+    self.runtime.flow_region_overrides = {}
+    self.runtime.created_buckets = set()
+    self.runtime.page_title = delta.title
+
+    frames = self.runtime.frame_compiler.apply(
+        InitSurfaceDelta(
+            event='init_surface',
+            surface_id=delta.surface_id,
+            title=delta.title,
+            summary=delta.summary,
+            theme=delta.theme,
+        )
+    )
+    logger.info(
+        'Initialized layout scaffold=%s role_slots=%s',
+        self.runtime.layout_hint,
+        self.runtime.role_slots,
+    )
+    return frames
+
+  def handle_finalize(self, _: FinalizeDelta) -> list[A2UIFrame]:
+    frames: list[A2UIFrame] = []
+    orphan_region_ids = list(self.runtime.pending_region_deltas.keys())
+    for region_id in orphan_region_ids:
+      frames.extend(
+          self.region_handler.handle(
+              AddRegionDelta(
+                  event='add_region',
+                  id=region_id,
+                  role='details',
+                  title='补建内容区',
+                  description='模型在 region 声明前先发送了条目，后端已自动兜底创建。',
+              )
+          )
+      )
+    return frames
+
+
+class ContentHandler:
+  def __init__(self, runtime: SkeletonRuntime, router: RegionRouter, region_handler: RegionHandler) -> None:
+    self.runtime = runtime
+    self.router = router
+    self.region_handler = region_handler
+
+  def handle_text(self, delta: AddRegionTextDelta) -> list[A2UIFrame]:
+    resolved = AddTextDelta(
+        event='add_text',
+        id=delta.id,
+        parent_id='',
+        text=delta.text,
+        usage_hint=delta.usage_hint,
+    )
+
+    def build(parent_id: str) -> object:
+      return resolved.model_copy(update={'parent_id': parent_id})
+
+    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_table(self, delta: AddRegionTableDelta) -> list[A2UIFrame]:
+    table_spec = {
+        'title': delta.title,
+        'columns': [column.model_dump(exclude_none=True) for column in delta.columns],
+        'rows': delta.rows,
+        'row_key': delta.row_key,
+        'striped': delta.striped,
+        'bordered': delta.bordered,
+    }
+    table_spec_json = json.dumps(table_spec, ensure_ascii=False)
+
+    def build(parent_id: str) -> object:
+      return AddTableDelta(
+          event='add_table',
+          id=delta.id,
+          parent_id=parent_id,
+          spec_json=table_spec_json,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_line_chart(self, delta: AddRegionLineChartDelta) -> list[A2UIFrame]:
+    chart_spec = {
+        'title': delta.title,
+        'width': delta.width,
+        'settings': delta.settings.model_dump(exclude_none=True),
+        'chartData': delta.chart_data,
+    }
+    chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
+
+    def build(parent_id: str) -> object:
+      return AddLineChartDelta(
+          event='add_line_chart',
+          id=delta.id,
+          parent_id=parent_id,
+          spec_json=chart_spec_json,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_pie_chart(self, delta: AddRegionPieChartDelta) -> list[A2UIFrame]:
+    chart_spec = {
+        'title': delta.title,
+        'width': delta.width,
+        'settings': delta.settings or {},
+        'chartData': [series.model_dump(exclude_none=True) for series in delta.chart_data],
+    }
+    chart_spec_json = json.dumps(chart_spec, ensure_ascii=False)
+
+    def build(parent_id: str) -> object:
+      return AddPieChartDelta(
+          event='add_pie_chart',
+          id=delta.id,
+          parent_id=parent_id,
+          spec_json=chart_spec_json,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'text', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_mermaid(self, delta: AddRegionMermaidDelta) -> list[A2UIFrame]:
+    mermaid_spec = {
+        'title': delta.title,
+        'diagramType': delta.diagram_type,
+        'definition': delta.definition,
+    }
+    mermaid_spec_json = json.dumps(mermaid_spec, ensure_ascii=False)
+    diagram_slot = 'flow' if delta.diagram_type in {'flowchart', 'sequenceDiagram', 'stateDiagram-v2'} else 'text'
+
+    def build(parent_id: str) -> object:
+      return AddMermaidDelta(
+          event='add_mermaid',
+          id=delta.id,
+          parent_id=parent_id,
+          spec_json=mermaid_spec_json,
+      )
+
+    return self.router.apply_to_region(delta.region_id, diagram_slot, build, self.region_handler._coerce_text_for_binding)
+
+  def handle_fact(self, delta: AddRegionFactDelta) -> list[A2UIFrame]:
+    def build(parent_id: str) -> object:
+      return AddKeyValueDelta(
+          event='add_key_value',
+          id=delta.id,
+          parent_id=parent_id,
+          label=delta.label,
+          value=delta.value,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'fact', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_image(self, delta: AddRegionImageDelta) -> list[A2UIFrame]:
+    def build(parent_id: str) -> object:
+      return AddImageDelta(
+          event='add_image',
+          id=delta.id,
+          parent_id=parent_id,
+          url=delta.url,
+          usage_hint=delta.usage_hint,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'image', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_action(self, delta: AddRegionActionDelta) -> list[A2UIFrame]:
+    slot_name = 'action_primary' if delta.primary else 'action_secondary'
+
+    def build(parent_id: str) -> object:
+      return AddButtonDelta(
+          event='add_button',
+          id=delta.id,
+          parent_id=parent_id,
+          label=delta.label,
+          action_name=delta.action_name,
+          primary=delta.primary,
+      )
+
+    return self.router.apply_to_region(delta.region_id, slot_name, build, self.region_handler._coerce_text_for_binding)
+
+  def handle_input(self, delta: AddRegionInputDelta) -> list[A2UIFrame]:
+    def build(parent_id: str) -> object:
+      return AddInputDelta(
+          event='add_input',
+          id=delta.id,
+          parent_id=parent_id,
+          component=delta.component,
+          label=delta.label,
+          path=delta.path,
+          value=delta.value,
+          text_field_type=delta.text_field_type,
+          min_value=delta.min_value,
+          max_value=delta.max_value,
+          options=delta.options,
+          enable_date=delta.enable_date,
+          enable_time=delta.enable_time,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'input', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_divider(self, delta: AddRegionDividerDelta) -> list[A2UIFrame]:
+    def build(parent_id: str) -> object:
+      return AddDividerDelta(
+          event='add_divider',
+          id=delta.id,
+          parent_id=parent_id,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'divider', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_list_item(self, delta: AppendRegionListItemDelta) -> list[A2UIFrame]:
+    def build(parent_id: str) -> object:
+      return AppendListItemDelta(
+          event='append_list_item',
+          id=delta.id,
+          parent_id=parent_id,
+          title=delta.title,
+          detail=delta.detail,
+          title_usage_hint=delta.title_usage_hint,
+          detail_usage_hint=delta.detail_usage_hint,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'list_item', build, self.region_handler._coerce_text_for_binding)
+
+  def handle_flow(self, delta: AddRegionFlowDiagramDelta) -> list[A2UIFrame]:
+    flow_region_id, prefix_frames = self._resolve_flow_region(delta.region_id)
+
+    def build(parent_id: str) -> object:
+      return AddFlowDiagramDelta(
+          event='add_flow_diagram',
+          id=delta.id,
+          parent_id=parent_id,
+          title=delta.title,
+          nodes=delta.nodes,
+          edges=delta.edges,
+      )
+
+    frames = list(prefix_frames)
+    frames.extend(self.router.apply_to_region(flow_region_id, 'flow', build, self.region_handler._coerce_text_for_binding))
+    return frames
+
   def _resolve_flow_region(self, source_region_id: str) -> tuple[str, list[A2UIFrame]]:
-    if source_region_id in self.regions and self.regions[source_region_id].role == 'workflow':
+    if source_region_id in self.runtime.regions and self.runtime.regions[source_region_id].role == 'workflow':
       return source_region_id, []
 
-    target_region_id = self.flow_region_overrides.get(source_region_id)
+    target_region_id = self.runtime.flow_region_overrides.get(source_region_id)
     if target_region_id is None:
       base_id = f'{source_region_id}_workflow_region'
       target_region_id = base_id
       suffix = 2
-      while target_region_id in self.regions and self.regions[target_region_id].role != 'workflow':
+      while target_region_id in self.runtime.regions and self.runtime.regions[target_region_id].role != 'workflow':
         target_region_id = f'{base_id}_{suffix}'
         suffix += 1
-      self.flow_region_overrides[source_region_id] = target_region_id
+      self.runtime.flow_region_overrides[source_region_id] = target_region_id
 
-    if target_region_id in self.regions:
+    if target_region_id in self.runtime.regions:
       return target_region_id, []
 
     title = '流程图'
-    if source_region_id in self.regions and self.regions[source_region_id].role != 'workflow':
+    if source_region_id in self.runtime.regions and self.runtime.regions[source_region_id].role != 'workflow':
       title = f'{source_region_id}流程图'
-    frames = self._add_region(
+
+    frames = self.region_handler.handle(
         AddRegionDelta(
             event='add_region',
             id=target_region_id,
@@ -449,83 +536,49 @@ class SkeletonCompiler:
     )
     return target_region_id, frames
 
-  def _add_region(self, delta: AddRegionDelta) -> list[A2UIFrame]:
-    if not self.initialized:
-      raise ValueError('init_plan must be emitted before add_region')
-    if delta.id in self.regions:
-      raise ValueError(f'Duplicate region id: {delta.id}')
 
-    frames = self._ensure_bucket_for_role(delta.role)
+class SkeletonCompiler:
+  def __init__(self) -> None:
+    self.runtime = SkeletonRuntime()
+    self.router = RegionRouter(self.runtime)
+    self.region_handler = RegionHandler(self.runtime, self.router)
+    self.plan_handler = PlanHandler(self.runtime, self.region_handler)
+    self.content_handler = ContentHandler(self.runtime, self.router, self.region_handler)
 
-    builder = self.archetypes.builder_for(delta.role)
-    context = RegionBuildContext(
-        slot_parent=self._slot_for_role(delta.role),
-        delta=delta,
-        page_kind=self.page_kind,
-        emphasis=self.emphasis,
-        layout_hint=self.layout_hint,
-        arrangement=self._arrangement_for(delta),
-        presentation_variant=delta.presentation.variant if delta.presentation else 'standard',
-    )
-    result = builder.build(context, self._apply_low_level)
-    self.regions[delta.id] = RegionBinding(
-        region_id=delta.id,
-        role=delta.role,
-        section_id=delta.id,
-        archetype=result.archetype,
-        importance=delta.importance,
-        slot_parents=result.slot_parents,
-    )
-    frames.extend(result.frames)
-    frames.extend(self._flush_pending_region_deltas(delta.id))
-    return frames
+    self.handlers: dict[type[object], Callable[[object], list[A2UIFrame]]] = {
+        InitPlanDelta: lambda delta: self.plan_handler.handle_init(delta),
+        FinalizeDelta: lambda delta: self.plan_handler.handle_finalize(delta),
+        AddRegionDelta: lambda delta: self.region_handler.handle(delta),
+        AddRegionTextDelta: lambda delta: self.content_handler.handle_text(delta),
+        AddRegionTableDelta: lambda delta: self.content_handler.handle_table(delta),
+        AddRegionLineChartDelta: lambda delta: self.content_handler.handle_line_chart(delta),
+        AddRegionPieChartDelta: lambda delta: self.content_handler.handle_pie_chart(delta),
+        AddRegionMermaidDelta: lambda delta: self.content_handler.handle_mermaid(delta),
+        AddRegionFactDelta: lambda delta: self.content_handler.handle_fact(delta),
+        AddRegionImageDelta: lambda delta: self.content_handler.handle_image(delta),
+        AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),
+        AddRegionInputDelta: lambda delta: self.content_handler.handle_input(delta),
+        AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
+        AppendRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
+        AddRegionFlowDiagramDelta: lambda delta: self.content_handler.handle_flow(delta),
+    }
 
-  def _apply_region_delta(
-      self,
-      region_id: str,
-      slot_name: str,
-      delta_builder: Callable[[str], object],
-  ) -> list[A2UIFrame]:
-    if region_id not in self.regions:
-      logger.info('Region %s not ready; queueing %s', region_id, slot_name)
-      self.pending_region_deltas.setdefault(region_id, []).append(
-          PendingRegionDelta(slot_name=slot_name, delta_builder=delta_builder)
-      )
+  @property
+  def role_slots(self) -> dict[str, str]:
+    return self.runtime.role_slots
+
+  @property
+  def regions(self) -> dict[str, RegionBinding]:
+    return self.runtime.regions
+
+  @property
+  def pending_region_deltas(self) -> dict[str, list[PendingRegionDelta]]:
+    return self.runtime.pending_region_deltas
+
+  def apply(self, delta: object) -> list[A2UIFrame]:
+    payload = delta.model_dump() if hasattr(delta, 'model_dump') else delta
+    logger.info('Compiling skeleton delta type=%s payload=%s', type(delta).__name__, payload)
+    handler = self.handlers.get(type(delta))
+    if handler is None:
       return []
-    binding = self.regions[region_id]
-    low_level_delta = delta_builder(binding.parent_for(slot_name))
-    if isinstance(low_level_delta, AddTextDelta):
-      low_level_delta = self._coerce_text_for_binding(binding, low_level_delta)
-      if low_level_delta is None:
-        return []
-    return self._apply_low_level(low_level_delta)
-
-  def _flush_pending_region_deltas(self, region_id: str) -> list[A2UIFrame]:
-    binding = self.regions[region_id]
-    queued = self.pending_region_deltas.pop(region_id, [])
-    frames: list[A2UIFrame] = []
-    for item in queued:
-      low_level_delta = item.delta_builder(binding.parent_for(item.slot_name))
-      if isinstance(low_level_delta, AddTextDelta):
-        low_level_delta = self._coerce_text_for_binding(binding, low_level_delta)
-        if low_level_delta is None:
-          continue
-      frames.extend(self._apply_low_level(low_level_delta))
-    return frames
-
-  def _finalize(self) -> list[A2UIFrame]:
-    frames: list[A2UIFrame] = []
-    orphan_region_ids = list(self.pending_region_deltas.keys())
-    for region_id in orphan_region_ids:
-      frames.extend(
-          self._add_region(
-              AddRegionDelta(
-                  event='add_region',
-                  id=region_id,
-                  role='details',
-                  title='补建内容区',
-                  description='模型在 region 声明前先发送了条目，后端已自动兜底创建。',
-              )
-          )
-      )
-    return frames
+    return handler(delta)

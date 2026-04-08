@@ -24,3 +24,4 @@
 - 2026-04-07 任务：完成 table cell schema 升级；后端新增 {value,visual_weight?}（1..5）校验并保持 spec_json 原样透传，更新 table prompt 约束；前端 Table 支持对象单元格渲染并按 visual_weight 映射样式 class，补充后端/前端最小测试。
 - 2026-04-07 任务：修复 table richer cell 序列化问题；移除 TableCellSpec，改为 primitive/普通dict（{value,visual_weight?}）轻校验并原样透传，避免 json.dumps 遇到 Pydantic 对象报错；前端补充 getCellWeightClass 固定映射与测试。
 - 2026-04-07 任务：按要求删除 AddRegionTableDelta.rows 的 field_validator 轻校验实现，并将 prompting.SYSTEM_PROMPT 整体替换为最新展示编排约束版本；其余代码路径保持不变。
+- 2026-04-08 任务：重构 SkeletonCompiler 为 handler registry + runtime/router 分层；拆分 PlanHandler/RegionHandler/ContentHandler，并保留 region pending flush、flow 自动区域、hero h1 去重与 table/line/pie/mermaid 既有编译行为。
