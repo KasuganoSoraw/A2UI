@@ -81,7 +81,6 @@ def test_actions_region_stays_in_single_column_bucket() -> None:
   assert 'layout_main_lane' not in init_component_ids
   assert 'layout_side_lane' not in init_component_ids
   assert 'layout_side_rail' not in init_component_ids
-  assert compiler.role_slots['actions'] == 'actions_bucket'
   assert binding.parent_for('action_primary') == 'actions_region_action_row'
   assert binding.parent_for('action_secondary') == 'actions_region_action_row'
   assert 'actions_region_action_row' in component_ids
@@ -100,7 +99,6 @@ def test_form_action_first_keeps_actions_in_main_column_bucket() -> None:
   )
   init_component_ids = _slot_component_ids(init_frames)
 
-  assert compiler.role_slots['actions'] == 'actions_bucket'
   assert 'actions_footer_bucket' not in init_component_ids
 
   frames = compiler.apply(AddRegionDelta(event='add_region', id='actions_form', role='actions', title='Submit'))
@@ -259,38 +257,7 @@ def test_list_timeline_variant_compiles_to_timeline_and_timeline_item() -> None:
   assert any('Card' in component_types for component_types in component_type_by_id.values())
 
 
-def test_init_plan_does_not_precreate_all_role_buckets() -> None:
-  compiler = SkeletonCompiler()
-  init_frames = compiler.apply(InitPlanDelta(event='init_plan', title='Lazy bucket page'))
-  init_component_ids = _slot_component_ids(init_frames)
-
-  assert 'hero_bucket' not in init_component_ids
-  assert 'summary_bucket' not in init_component_ids
-  assert 'details_bucket' not in init_component_ids
-  assert 'workflow_bucket' not in init_component_ids
-  assert 'form_bucket' not in init_component_ids
-  assert 'list_bucket' not in init_component_ids
-  assert 'supporting_bucket' not in init_component_ids
-  assert 'actions_bucket' not in init_component_ids
-
-
-
-def test_bucket_is_created_on_first_region_use_only() -> None:
-  compiler = SkeletonCompiler()
-  compiler.apply(InitPlanDelta(event='init_plan', title='Lazy bucket insert order'))
-
-  summary_frames = compiler.apply(AddRegionDelta(event='add_region', id='summary_region', role='summary', title='Summary'))
-  summary_component_ids = _slot_component_ids(summary_frames)
-  assert 'summary_bucket' in summary_component_ids
-  assert 'details_bucket' not in summary_component_ids
-
-  details_frames = compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='Details'))
-  details_component_ids = _slot_component_ids(details_frames)
-  assert 'details_bucket' in details_component_ids
-
-
-
-def test_hero_h1_fallback_only_removes_near_duplicate_title() -> None:
+def test_hero_h1_text_is_no_longer_backend_filtered() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='系统健康概览'))
   compiler.apply(AddRegionDelta(event='add_region', id='hero_region', role='hero', title='核心状态'))
@@ -305,7 +272,7 @@ def test_hero_h1_fallback_only_removes_near_duplicate_title() -> None:
       )
   )
   duplicate_ids = _slot_component_ids(duplicate_frames)
-  assert 'hero_duplicate_h1' not in duplicate_ids
+  assert 'hero_duplicate_h1' in duplicate_ids
 
   preserved_frames = compiler.apply(
       AddRegionTextDelta(

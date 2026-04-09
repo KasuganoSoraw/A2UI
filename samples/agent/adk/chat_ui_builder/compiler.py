@@ -46,8 +46,7 @@ class FrameCompiler:
     self.aliases: dict[str, str] = {}
     self.auto_sections: dict[str, str] = {}
     self.page_parent_id = self.root_id
-    self.child_order: dict[tuple[str, str], tuple[int, int]] = {}
-    self._insertion_counter = 0
+    self.local_child_order: dict[tuple[str, str], int] = {}
 
   def apply(self, delta: Any) -> list[A2UIFrame]:
     logger.info('Compiling delta type=%s payload=%s', type(delta).__name__, delta.model_dump())
@@ -122,10 +121,14 @@ class FrameCompiler:
     canonical_parent_id = self._resolve_parent_id(parent_id)
     if child_id not in parent.child_ids:
       parent.child_ids.append(child_id)
-    self._insertion_counter += 1
-    priority = order if order is not None else 10_000 + self._insertion_counter
-    self.child_order[(canonical_parent_id, child_id)] = (priority, self._insertion_counter)
-    parent.child_ids.sort(key=lambda existing_id: self.child_order.get((canonical_parent_id, existing_id), (99_999, 99_999)))
+    if order is None:
+      return
+    if canonical_parent_id == self.page_parent_id:
+      return
+    self.local_child_order[(canonical_parent_id, child_id)] = order
+    parent.child_ids.sort(
+        key=lambda existing_id: self.local_child_order.get((canonical_parent_id, existing_id), 10_000)
+    )
 
   def _ensure_auto_section(self, bucket: str, title: str) -> list[A2UIFrame]:
     existing = self.auto_sections.get(bucket)
@@ -206,8 +209,7 @@ class FrameCompiler:
     self.containers = {
         self.root_id: ContainerState(component_id=self.root_id, container_type='Column')
     }
-    self.child_order = {}
-    self._insertion_counter = 0
+    self.local_child_order = {}
 
     frame_card_id = self._register_id('surface_frame_card')
     frame_content_id = self._helper_id(frame_card_id, 'content')
@@ -274,11 +276,6 @@ class FrameCompiler:
     self.containers[frame_card_id].child_ids = [intro_card_id]
     self.containers[intro_card_id] = ContainerState(component_id=intro_content_id, container_type='Column')
     self.containers[intro_card_id].child_ids = [title_id] + ([summary_id] if delta.summary else [])
-    self.child_order[(self.root_id, frame_card_id)] = (0, 0)
-    self.child_order[(frame_card_id, intro_card_id)] = (0, 0)
-    self.child_order[(intro_card_id, title_id)] = (0, 0)
-    if delta.summary:
-      self.child_order[(intro_card_id, summary_id)] = (1, 1)
     self.auto_sections = {}
     self.page_parent_id = frame_card_id
 

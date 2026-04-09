@@ -27,7 +27,6 @@ from models import (
     AddLineChartDelta,
     AddMermaidDelta,
     AddPieChartDelta,
-    AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
     AppendListItemDelta,
@@ -39,17 +38,6 @@ from models import (
 from region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
 
 logger = logging.getLogger(__name__)
-
-BUCKET_ORDER = {
-    'hero_bucket': 10,
-    'summary_bucket': 20,
-    'details_bucket': 30,
-    'workflow_bucket': 40,
-    'form_bucket': 50,
-    'list_bucket': 60,
-    'supporting_bucket': 70,
-    'actions_bucket': 80,
-}
 
 
 @dataclass
@@ -79,29 +67,9 @@ class SkeletonRuntime:
   layout_hint: str = 'single_column'
   page_kind: str = 'overview'
   emphasis: str = 'balanced'
-  role_slots: dict[str, str] = field(default_factory=dict)
   regions: dict[str, RegionBinding] = field(default_factory=dict)
   pending_region_deltas: dict[str, list[PendingRegionDelta]] = field(default_factory=dict)
-  created_buckets: set[str] = field(default_factory=set)
   page_title: str = ''
-
-  @staticmethod
-  def role_slots_recipe() -> dict[str, str]:
-    return {
-        'hero': 'hero_bucket',
-        'summary': 'summary_bucket',
-        'details': 'details_bucket',
-        'workflow': 'workflow_bucket',
-        'form': 'form_bucket',
-        'list': 'list_bucket',
-        'insights': 'summary_bucket',
-        'supporting': 'supporting_bucket',
-        'actions': 'actions_bucket',
-    }
-
-  @staticmethod
-  def bucket_order(bucket_id: str) -> int:
-    return BUCKET_ORDER.get(bucket_id, 1000)
 
 class RegionRouter:
   def __init__(self, runtime: SkeletonRuntime) -> None:
@@ -145,11 +113,9 @@ class RegionHandler:
     if delta.id in self.runtime.regions:
       raise ValueError(f'Duplicate region id: {delta.id}')
 
-    frames = self._ensure_bucket_for_role(delta.role)
-
     builder = self.runtime.archetypes.builder_for(delta.role)
     context = RegionBuildContext(
-        slot_parent=self._slot_for_role(delta.role),
+        slot_parent='root',
         delta=delta,
         page_kind=self.runtime.page_kind,
         emphasis=self.runtime.emphasis,
@@ -166,28 +132,8 @@ class RegionHandler:
         importance=delta.importance,
         slot_parents=result.slot_parents,
     )
-    frames.extend(result.frames)
+    frames = list(result.frames)
     frames.extend(self.router.flush_pending(delta.id))
-    return frames
-
-  def _slot_for_role(self, role: str) -> str:
-    return self.runtime.role_slots.get(role, 'root')
-
-  def _ensure_bucket_for_role(self, role: str) -> list[A2UIFrame]:
-    bucket_id = self.runtime.role_slots.get(role)
-    if not bucket_id or bucket_id == 'root' or bucket_id in self.runtime.created_buckets:
-      return []
-
-    frames = self.runtime.frame_compiler.apply(
-        AddSectionDelta(
-            event='add_section',
-            id=bucket_id,
-            parent_id='root',
-            layout='Column',
-            order=SkeletonRuntime.bucket_order(bucket_id),
-        )
-    )
-    self.runtime.created_buckets.add(bucket_id)
     return frames
 
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
@@ -223,10 +169,8 @@ class PlanHandler:
     self.runtime.layout_hint = 'single_column'
     self.runtime.page_kind = delta.page_kind
     self.runtime.emphasis = delta.emphasis
-    self.runtime.role_slots = SkeletonRuntime.role_slots_recipe()
     self.runtime.regions = {}
     self.runtime.pending_region_deltas = {}
-    self.runtime.created_buckets = set()
     self.runtime.page_title = delta.title
 
     frames = self.runtime.frame_compiler.apply(
@@ -239,9 +183,8 @@ class PlanHandler:
         )
     )
     logger.info(
-        'Initialized layout scaffold=%s role_slots=%s',
+        'Initialized layout scaffold=%s',
         self.runtime.layout_hint,
-        self.runtime.role_slots,
     )
     return frames
 
@@ -469,10 +412,6 @@ class SkeletonCompiler:
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
         AppendRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
     }
-
-  @property
-  def role_slots(self) -> dict[str, str]:
-    return self.runtime.role_slots
 
   @property
   def regions(self) -> dict[str, RegionBinding]:

@@ -26,3 +26,4 @@
 - 2026-04-07 任务：按要求删除 AddRegionTableDelta.rows 的 field_validator 轻校验实现，并将 prompting.SYSTEM_PROMPT 整体替换为最新展示编排约束版本；其余代码路径保持不变。
 - 2026-04-08 任务：重构 SkeletonCompiler 为 handler registry + runtime/router 分层；拆分 PlanHandler/RegionHandler/ContentHandler，并保留 region pending flush、flow 自动区域、hero h1 去重与 table/line/pie/mermaid 既有编译行为。
 - 2026-04-08 任务：完成后端专项清理；移除标题文本机械纠偏链路（text_coercer/标题重叠判定）与原生 add_region_flow_diagram 支持，删除 flow 自动补建逻辑，保留 Mermaid flow 类图元在 flow slot 路由。
+- 2026-04-09 任务：完成结构收敛重构；移除 Skeleton bucket 中间层与 role->bucket 映射，region 直接挂页面主父容器；FrameCompiler 去除跨 region 全局排序并保留局部 order 稳定性。
