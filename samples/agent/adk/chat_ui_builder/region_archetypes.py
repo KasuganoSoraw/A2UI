@@ -33,54 +33,33 @@ class RegionBuildResult:
   slot_parents: dict[str, str] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
-class SlotSpec:
-  name: str
-  section_id: str
-  layout: str
-  order: int
-  appearance: str | None = None
-
-
 class RegionArchetypeBuilder:
   archetype_name = 'details_group'
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     raise NotImplementedError
 
-  def _base_region(
+  def _create_region_root(self, context: RegionBuildContext, emit: EmitLowLevel, *, layout: str = 'Column') -> list[A2UIFrame]:
+    return emit(
+        AddSectionDelta(
+            event='add_section',
+            id=context.delta.id,
+            parent_id=context.slot_parent,
+            layout=layout,
+        )
+    )
+
+  def _create_header_and_body(
       self,
       context: RegionBuildContext,
       emit: EmitLowLevel,
       *,
-      region_layout: str = 'Column',
-      include_body_slot: bool = True,
-      slot_specs: list[SlotSpec] | None = None,
-      slot_parents: dict[str, str] | None = None,
-  ) -> RegionBuildResult:
+      include_body_slot: bool,
+  ) -> tuple[list[A2UIFrame], str]:
     region_id = context.delta.id
-    frames = emit(
-        AddSectionDelta(
-            event='add_section',
-            id=region_id,
-            parent_id=context.slot_parent,
-            layout=region_layout,
-        )
-    )
-
-    resolved_slot_parents = {
-        'text': region_id,
-        'fact': region_id,
-        'action_primary': region_id,
-        'action_secondary': region_id,
-        'input': region_id,
-        'image': region_id,
-        'list_item': region_id,
-        'flow': region_id,
-        'divider': region_id,
-    }
-
+    frames: list[A2UIFrame] = []
     content_parent = region_id
+
     if context.delta.title or context.delta.description:
       header_id = f'{region_id}_header'
       frames.extend(
@@ -94,30 +73,33 @@ class RegionArchetypeBuilder:
               )
           )
       )
+
       if context.delta.title:
         frames.extend(
-            emit(
-                AddTextDelta(
-                    event='add_text',
-                    id=f'{header_id}_title',
-                    parent_id=header_id,
-                    text=context.delta.title,
-                    usage_hint='h2',
-                )
-            )
+          emit(
+              AddTextDelta(
+                  event='add_text',
+                  id=f'{header_id}_title',
+                  parent_id=header_id,
+                  text=context.delta.title,
+                  usage_hint='h2',
+              )
+          )
         )
+
       if context.delta.description:
         frames.extend(
-            emit(
-                AddTextDelta(
-                    event='add_text',
-                    id=f'{header_id}_description',
-                    parent_id=header_id,
-                    text=context.delta.description,
-                    usage_hint='body',
-                )
-            )
+          emit(
+              AddTextDelta(
+                  event='add_text',
+                  id=f'{header_id}_description',
+                  parent_id=header_id,
+                  text=context.delta.description,
+                  usage_hint='body',
+              )
+          )
         )
+
       if include_body_slot:
         body_layout = 'Column' if context.arrangement.body_layout == 'column' else 'Row'
         body_id = f'{region_id}_body'
@@ -134,29 +116,42 @@ class RegionArchetypeBuilder:
         )
         content_parent = body_id
 
-    resolved_slot_parents['text'] = content_parent
-    resolved_slot_parents['image'] = content_parent
-    resolved_slot_parents['divider'] = content_parent
+    return frames, content_parent
 
-    for spec in slot_specs or []:
-      frames.extend(
-          emit(
-              AddSectionDelta(
-                  event='add_section',
-                  id=spec.section_id,
-                  parent_id=region_id,
-                  layout=spec.layout,
-                  order=spec.order,
-                  appearance=spec.appearance,
-              )
-          )
-      )
-      resolved_slot_parents[spec.name] = spec.section_id
+  def _create_section(
+      self,
+      emit: EmitLowLevel,
+      *,
+      section_id: str,
+      parent_id: str,
+      layout: str,
+      order: int,
+      appearance: str | None = None,
+  ) -> list[A2UIFrame]:
+    return emit(
+        AddSectionDelta(
+            event='add_section',
+            id=section_id,
+            parent_id=parent_id,
+            layout=layout,
+            order=order,
+            appearance=appearance,
+        )
+    )
 
-    if slot_parents:
-      resolved_slot_parents.update(slot_parents)
-
-    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=resolved_slot_parents)
+  def _default_slot_parents(self, region_id: str, content_parent: str) -> dict[str, str]:
+    # 统一默认路由：多数内容落在正文内容父容器；其余 slot 默认落 region 根节点
+    return {
+        'text': content_parent,
+        'image': content_parent,
+        'divider': content_parent,
+        'fact': region_id,
+        'action_primary': region_id,
+        'action_secondary': region_id,
+        'input': region_id,
+        'list_item': region_id,
+        'flow': region_id,
+    }
 
 
 class HeroArchetypeBuilder(RegionArchetypeBuilder):
@@ -164,28 +159,41 @@ class HeroArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
-    actions_id = f'{region_id}_actions'
-    return self._base_region(
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(
         context,
         emit,
         include_body_slot=context.arrangement.body_layout != 'none',
-        slot_specs=[
-            SlotSpec(
-                name='fact',
-                section_id=f'{region_id}_facts',
-                layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
-                order=30,
-                appearance='hero_fact',
-            ),
-            SlotSpec(
-                name='action_primary',
-                section_id=actions_id,
-                layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-                order=40,
-            ),
-        ],
-        slot_parents={'action_secondary': actions_id},
     )
+    frames.extend(header_body_frames)
+
+    facts_id = f'{region_id}_facts'
+    actions_id = f'{region_id}_actions'
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=facts_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
+            order=30,
+            appearance='hero_fact',
+        )
+    )
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=actions_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
+            order=40,
+        )
+    )
+
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['fact'] = facts_id
+    slot_parents['action_primary'] = actions_id
+    slot_parents['action_secondary'] = actions_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class SummaryArchetypeBuilder(RegionArchetypeBuilder):
@@ -193,25 +201,23 @@ class SummaryArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+
+    # Summary 的正文直接落在 facts 容器，保持紧凑结构。
     facts_id = f'{region_id}_facts'
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=False,
-        slot_specs=[
-            SlotSpec(
-                name='fact',
-                section_id=facts_id,
-                layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
-                order=20,
-            )
-        ],
-        slot_parents={
-            'text': facts_id,
-            'image': facts_id,
-            'divider': facts_id,
-        },
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=facts_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
+            order=20,
+        )
     )
+
+    slot_parents = self._default_slot_parents(region_id, facts_id)
+    slot_parents['fact'] = facts_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class DetailsArchetypeBuilder(RegionArchetypeBuilder):
@@ -219,27 +225,36 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
+    frames.extend(header_body_frames)
+
+    facts_id = f'{region_id}_facts'
     actions_id = f'{region_id}_actions'
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=True,
-        slot_specs=[
-            SlotSpec(
-                name='fact',
-                section_id=f'{region_id}_facts',
-                layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
-                order=30,
-            ),
-            SlotSpec(
-                name='action_primary',
-                section_id=actions_id,
-                layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-                order=40,
-            ),
-        ],
-        slot_parents={'action_secondary': actions_id},
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=facts_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
+            order=30,
+        )
     )
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=actions_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
+            order=40,
+        )
+    )
+
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['fact'] = facts_id
+    slot_parents['action_primary'] = actions_id
+    slot_parents['action_secondary'] = actions_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class ActionsArchetypeBuilder(RegionArchetypeBuilder):
@@ -247,26 +262,48 @@ class ActionsArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
     actions_layout = 'Row' if context.arrangement.actions_layout == 'row' else 'Column'
+
+    slot_parents = self._default_slot_parents(region_id, region_id)
     if context.arrangement.actions_layout == 'row':
       actions_id = f'{region_id}_actions'
-      return self._base_region(
-          context,
-          emit,
-          include_body_slot=False,
-          slot_specs=[SlotSpec(name='action_primary', section_id=actions_id, layout=actions_layout, order=30)],
-          slot_parents={'action_secondary': actions_id},
+      frames.extend(
+          self._create_section(
+              emit,
+              section_id=actions_id,
+              parent_id=region_id,
+              layout=actions_layout,
+              order=30,
+          )
       )
+      slot_parents['action_primary'] = actions_id
+      slot_parents['action_secondary'] = actions_id
+      return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=False,
-        slot_specs=[
-            SlotSpec(name='action_primary', section_id=f'{region_id}_actions_primary', layout=actions_layout, order=30),
-            SlotSpec(name='action_secondary', section_id=f'{region_id}_actions_secondary', layout=actions_layout, order=40),
-        ],
+    primary_id = f'{region_id}_actions_primary'
+    secondary_id = f'{region_id}_actions_secondary'
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=primary_id,
+            parent_id=region_id,
+            layout=actions_layout,
+            order=30,
+        )
     )
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=secondary_id,
+            parent_id=region_id,
+            layout=actions_layout,
+            order=40,
+        )
+    )
+    slot_parents['action_primary'] = primary_id
+    slot_parents['action_secondary'] = secondary_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class WorkflowArchetypeBuilder(RegionArchetypeBuilder):
@@ -274,33 +311,40 @@ class WorkflowArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
+    frames.extend(header_body_frames)
+
+    flow_id = f'{region_id}_flow'
     actions_id = f'{region_id}_actions'
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=True,
-        slot_specs=[
-            SlotSpec(name='flow', section_id=f'{region_id}_flow', layout='Column', order=30),
-            SlotSpec(
-                name='action_primary',
-                section_id=actions_id,
-                layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-                order=40,
-            ),
-        ],
-        slot_parents={'action_secondary': actions_id},
+    frames.extend(self._create_section(emit, section_id=flow_id, parent_id=region_id, layout='Column', order=30))
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=actions_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
+            order=40,
+        )
     )
+
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['flow'] = flow_id
+    slot_parents['action_primary'] = actions_id
+    slot_parents['action_secondary'] = actions_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class SupportingArchetypeBuilder(RegionArchetypeBuilder):
   archetype_name = 'supporting_block'
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=True,
-    )
+    region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
+    frames.extend(header_body_frames)
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class ListArchetypeBuilder(RegionArchetypeBuilder):
@@ -308,23 +352,37 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=False)
+    frames.extend(header_body_frames)
+
+    list_items_id = f'{region_id}_list_items'
     actions_id = f'{region_id}_actions'
     list_layout = 'Timeline' if context.presentation_variant == 'timeline' else 'List'
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=False,
-        slot_specs=[
-            SlotSpec(name='list_item', section_id=f'{region_id}_list_items', layout=list_layout, order=30),
-            SlotSpec(
-                name='action_primary',
-                section_id=actions_id,
-                layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-                order=40,
-            ),
-        ],
-        slot_parents={'action_secondary': actions_id},
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=list_items_id,
+            parent_id=region_id,
+            layout=list_layout,
+            order=30,
+        )
     )
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=actions_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
+            order=40,
+        )
+    )
+
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['list_item'] = list_items_id
+    slot_parents['action_primary'] = actions_id
+    slot_parents['action_secondary'] = actions_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class FormArchetypeBuilder(RegionArchetypeBuilder):
@@ -332,22 +390,28 @@ class FormArchetypeBuilder(RegionArchetypeBuilder):
 
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     region_id = context.delta.id
+    frames = self._create_region_root(context, emit)
+    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
+    frames.extend(header_body_frames)
+
+    inputs_id = f'{region_id}_inputs'
     actions_id = f'{region_id}_actions'
-    return self._base_region(
-        context,
-        emit,
-        include_body_slot=True,
-        slot_specs=[
-            SlotSpec(name='input', section_id=f'{region_id}_inputs', layout='Column', order=30),
-            SlotSpec(
-                name='action_primary',
-                section_id=actions_id,
-                layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-                order=40,
-            ),
-        ],
-        slot_parents={'action_secondary': actions_id},
+    frames.extend(self._create_section(emit, section_id=inputs_id, parent_id=region_id, layout='Column', order=30))
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=actions_id,
+            parent_id=region_id,
+            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
+            order=40,
+        )
     )
+
+    slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['input'] = inputs_id
+    slot_parents['action_primary'] = actions_id
+    slot_parents['action_secondary'] = actions_id
+    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
 class RegionArchetypeRegistry:
