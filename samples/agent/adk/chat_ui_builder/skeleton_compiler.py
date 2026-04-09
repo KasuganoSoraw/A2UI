@@ -138,25 +138,17 @@ class RegionHandler:
 
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
     role_defaults: dict[str, ArrangementSemantics] = {
-        'hero': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'summary': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
-        'insights': ArrangementSemantics(body='compact_group', facts='fact_grid', actions='action_row'),
-        'details': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'workflow': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'form': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'actions': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
-        'supporting': ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row'),
-        'list': ArrangementSemantics(body='compact_group', facts='fact_row', actions='action_row'),
+        'hero': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
+        'summary': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
+        'insights': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
+        'details': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
+        'workflow': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
+        'form': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
+        'actions': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
+        'supporting': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
+        'list': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
     }
-    arrangement = role_defaults.get(delta.role, ArrangementSemantics())
-
-    if delta.role in {'summary', 'insights'} and self.runtime.page_kind in {'dashboard', 'overview'}:
-      arrangement = ArrangementSemantics(body='compact_group', facts='fact_grid', actions=arrangement.actions)
-
-    if delta.role == 'details' and self.runtime.emphasis == 'content-first':
-      arrangement = ArrangementSemantics(body='stacked', facts='fact_row', actions='action_row')
-
-    return arrangement
+    return role_defaults.get(delta.role, ArrangementSemantics())
 
 
 class PlanHandler:
