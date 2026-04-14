@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, model_validator
@@ -57,6 +57,21 @@ async def startup_event() -> None:
 @app.get('/health')
 async def health() -> dict[str, str]:
   return {'status': 'ok'}
+
+
+@app.websocket('/ws/debug')
+async def ws_debug(websocket: WebSocket) -> None:
+  await websocket.accept()
+  logger.info('WS /ws/debug connected')
+  await websocket.send_text('connected')
+  try:
+    while True:
+      message = await websocket.receive_text()
+      logger.info('WS /ws/debug message=%s', message[: settings.max_log_chars])
+  except WebSocketDisconnect:
+    logger.info('WS /ws/debug disconnected')
+  except Exception:
+    logger.exception('WS /ws/debug error')
 
 
 @app.post('/api/chat/stream')
