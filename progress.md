@@ -1,2 +1,32 @@
 - 2026-03-26 任务：chat_ui_builder 收敛为 planning delta 单路径；完成设计文档与开发计划，移除 IntentPlan/legacy fallback 相关代码路径与文件，补充 service 单路径测试并更新 README。
 - 2026-03-27 任务：chat_ui_builder 布局编译收敛为单列；删除双栏 scaffold 与 side context，统一 bucket 落主列，新增 flow diagram 自动独占 workflow region 规则，并同步更新 archetype 测试用例。
+- 2026-03-28 任务：A2UI 定位收敛为上游 Agent 结果展示层；重写 planner prompt 的“只展示不编造”约束，新增 source_data/user_query 输入形态，后端增加无动作项时过滤 actions 的最小约束，并更新 API/README 与服务层测试。
+- 2026-03-28 任务：实现日志搜索展示模板 log_search_result_template；新增日志输入判定与模板化 planning delta 生成（概览/时间线/上下文/原始数据），service 接入模板直编译路径，前端增加 source_data JSON 输入与日志示例按钮，并补充模板链路测试。
+- 2026-03-28 任务：完成去场景特化重构；从通用 prompt 移除日志 one-shot 与日志优先模板描述，删除 log_template.py 及 service 调用链，新增通用 warning usage_hint（schema/contract/测试/前端样式），并恢复纯通用 role+archetype 主链。
+- 2026-03-30 任务：增强通用 prompt/planning contract 语义；补充 usage_hint（h1/h2/h3/body/caption/warning）解释，新增 FlowDiagram 通用规则与 one-shot 示例，扩展 list item 的可选 usage_hint 字段并实现“模型优先、后端兜底”透传策略，更新对应测试。
+- 2026-03-30 任务：新增 list 的 presentation.variant（standard/timeline）通用展示能力；在 contract/schema 中接入 presentation 配置与 list item 可选 usage_hint，后端编译链输出 Timeline/TimelineItem（item 内继续复用 Card/Column/Text），并补充 timeline 变体测试。
+- 2026-03-30 任务：仅前端新增 Timeline/TimelineItem 组件并接入 registry，补充时间线样式，打通后端 Timeline 帧到前端的基础展示容器能力（不改后端、不实现额外业务语义）。
+- 2026-03-30 任务：修复 chat_ui_builder 前端 Timeline/TimelineItem 的 A2UI 协议实现；组件改为基于 node/surfaceId 与 node.properties(child/children) 递归渲染，补齐 node.weight 支持，并新增对应设计文档与开发计划。
+- 2026-03-30 任务：重写 chat_ui_builder 的 SYSTEM_PROMPT 为“展示编排器”定位；强化只展示不编造边界，调整 raw/evidence 为按需展示，保留 usage_hint、list.timeline、FlowDiagram 规则与 one-shot。
+- 2026-03-31 任务：调整业务骨架生成策略为 role bucket 懒创建（取消 init_plan 后全量空 bucket 预创建），并新增 hero 文本与页面标题的 h1 去重/降级规则，补充对应测试用例。
+- 2026-03-31 任务：将页面标题层级主约束前移到 SYSTEM_PROMPT（页面唯一 h1、hero 职责与 role 语义），后端 hero h1 改为仅明显重复时轻量去重；同时删除 skeleton_compiler 中无用 `_build_role_buckets` 并简化 bucket parent 逻辑。
+- 2026-03-31 任务：为 chat_ui_builder 接入 add_region_table 全链路；新增 table planning/low-level schema，Skeleton 复用 text 默认落点编译 AddTableDelta，FrameCompiler 输出 Table(spec.path) 并写入 spec_json，补充 contract 文案与表格链路测试。
+- 2026-03-31 任务：前端新增 Table 组件并注册到 App registry；按 spec.path 读取并解析后端 valueString(JSON) 表格 spec，使用原生 HTML table 渲染，补充最小 table 样式与空态/异常降级处理。
+- 2026-03-31 任务：新增 add_region_line_chart 全链路（schema/contract/skeleton/frame/tests）；按 table 同模式将 planning 事件编译为 AddLineChartDelta(spec_json)，并输出 LineChart.spec.path + dataModel spec valueString。
+- 2026-04-01 任务：优化 chat_ui_builder 前端 LineChart 展示质量；引入 Recharts 替换手写 SVG 绘制，保留 spec.path 解析链路并完善空态；补充本次改造设计/计划文档并完成样式调整。
+- 2026-04-01 任务：修复 chat_ui_builder 前端 LineChart 的 Hooks 调用顺序；将 useMemo 前置到全部 early return 之前并在回调中补充空值兜底，消除渲染轮次间 hook 顺序漂移问题。
+- 2026-04-01 任务：修复 LineChart 折线/网格线不可见问题；定位到 a2ui reset 的 all:revert 对 Recharts SVG 样式重置影响，在 .a2ui-line-chart 作用域补充保护样式并为折线透传颜色变量，恢复线条与网格可见性。
+- 2026-04-01 任务：精确修复 LineChart 折线不可见；删除 .recharts-line-curve 的颜色接管与 CSS 变量传色方案，改为由 Recharts Line props 显式控制线/点样式，保留网格与坐标轴可见性保护。
+- 2026-04-01 任务：新增 PieChart 全链路事件（add_region_pie_chart/add_pie_chart）；后端按 LineChart 路径完成 schema/skeleton/frame/prompt 接入，前端新增 PieChart 组件与注册样式，并补充 pie chart 路由与 spec 输出测试。
+- 2026-04-02 任务：新增容器级 appearance 机制并落地 hero_fact；为 hero 的 fact slot 容器下发 appearance=hero_fact，编译层透传到 Row/Column payload，前端映射 data-appearance 并补充 scoped 样式与回归测试。
+- 2026-04-02 任务：新增 Mermaid 全链路事件（add_region_mermaid/add_mermaid）；后端按重组件链路完成 schema/skeleton/frame/prompt 接入并按 diagram_type 路由 flow/text，前端新增 Mermaid 组件与样式，补充 Mermaid 路由与 spec 字段测试。
+- 2026-04-02 任务：修复前端 Mermaid 定义透传逻辑；移除 buildMermaidSource 对 diagramType 的前缀拼接，完整 definition 改为原样 trim 后渲染，避免 graph/flowchart 双前缀导致渲染失败。
+- 2026-04-07 任务：完成 table cell schema 升级；后端新增 {value,visual_weight?}（1..5）校验并保持 spec_json 原样透传，更新 table prompt 约束；前端 Table 支持对象单元格渲染并按 visual_weight 映射样式 class，补充后端/前端最小测试。
+- 2026-04-07 任务：修复 table richer cell 序列化问题；移除 TableCellSpec，改为 primitive/普通dict（{value,visual_weight?}）轻校验并原样透传，避免 json.dumps 遇到 Pydantic 对象报错；前端补充 getCellWeightClass 固定映射与测试。
+- 2026-04-07 任务：按要求删除 AddRegionTableDelta.rows 的 field_validator 轻校验实现，并将 prompting.SYSTEM_PROMPT 整体替换为最新展示编排约束版本；其余代码路径保持不变。
+- 2026-04-08 任务：重构 SkeletonCompiler 为 handler registry + runtime/router 分层；拆分 PlanHandler/RegionHandler/ContentHandler，并保留 region pending flush、flow 自动区域、hero h1 去重与 table/line/pie/mermaid 既有编译行为。
+- 2026-04-08 任务：完成后端专项清理；移除标题文本机械纠偏链路（text_coercer/标题重叠判定）与原生 add_region_flow_diagram 支持，删除 flow 自动补建逻辑，保留 Mermaid flow 类图元在 flow slot 路由。
+- 2026-04-09 任务：完成结构收敛重构；移除 Skeleton bucket 中间层与 role->bucket 映射，region 直接挂页面主父容器；FrameCompiler 去除跨 region 全局排序并保留局部 order 稳定性。
+- 2026-04-09 任务：完成 ArrangementSemantics 语义收敛；region_archetypes 改为 body_layout/facts_layout/actions_layout 直白字段并统一稳定 section id，skeleton_compiler 的 _arrangement_for 对齐为新映射且移除旧术语分支。
+- 2026-04-09 任务：完成 region_archetypes 可读性重构；弱化模板抽象，改为各 role 显式创建 section 与显式 slot_parents，保留外部接口与布局行为等价。
+- 2026-04-14 任务：同步本地代码到远程分支 codex/remove-intentplan-and-legacy-fallback-logic-dxojnz 基线；按要求定点修改 app.py 的 CORS allow_origins、收敛 prompting init_plan.layout_hint 到 auto|single_column，并新增“文字与条目可附加emoji”约束；models.AddRegionTextDelta 已一致无需改动。

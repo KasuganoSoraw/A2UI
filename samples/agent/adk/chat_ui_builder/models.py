@@ -10,6 +10,10 @@ class Theme(BaseModel):
   font: str | None = None
 
 
+class RegionPresentationConfig(BaseModel):
+  variant: Literal["standard", "timeline"] = "standard"
+
+
 class InitPlanDelta(BaseModel):
   event: Literal["init_plan"]
   surface_id: str = "main"
@@ -28,6 +32,7 @@ class AddRegionDelta(BaseModel):
   title: str | None = None
   description: str | None = None
   importance: Literal["high", "medium", "low"] = "medium"
+  presentation: RegionPresentationConfig | None = None
 
 
 class AddRegionTextDelta(BaseModel):
@@ -35,7 +40,7 @@ class AddRegionTextDelta(BaseModel):
   id: str
   region_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
 
 
 class AddRegionFactDelta(BaseModel):
@@ -91,6 +96,76 @@ class AppendRegionListItemDelta(BaseModel):
   region_id: str
   title: str
   detail: str | None = None
+  title_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
+  detail_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
+
+
+class TableColumnSpec(BaseModel):
+  key: str
+  label: str
+  width: str | None = None
+  align: Literal["left", "center", "right"] | None = None
+  ellipsis: bool | None = None
+
+
+class AddRegionTableDelta(BaseModel):
+  event: Literal["add_region_table"]
+  id: str
+  region_id: str
+  columns: list[TableColumnSpec]
+  rows: list[dict[str, object]]
+  title: str | None = None
+  row_key: str | None = None
+  striped: bool | None = None
+  bordered: bool | None = None
+
+
+class LineChartSettings(BaseModel):
+  dimension: str
+  xTitle: str | None = None
+  yTitle: str | None = None
+  metrics: list[str]
+  markPoint: bool | None = None
+
+
+class AddRegionLineChartDelta(BaseModel):
+  event: Literal["add_region_line_chart"]
+  id: str
+  region_id: str
+  title: str | None = None
+  width: str | None = None
+  settings: LineChartSettings
+  chart_data: list[dict[str, str | int | float | bool | None]]
+
+
+class PieChartSliceSpec(BaseModel):
+  value: int | float
+  name: str
+  selected: bool | None = None
+
+
+class PieChartSeriesSpec(BaseModel):
+  data: list[PieChartSliceSpec]
+  radius: str | None = None
+
+
+class AddRegionPieChartDelta(BaseModel):
+  event: Literal["add_region_pie_chart"]
+  id: str
+  region_id: str
+  title: str | None = None
+  width: str | None = None
+  settings: dict[str, object] | None = None
+  chart_data: list[PieChartSeriesSpec]
+
+
+class AddRegionMermaidDelta(BaseModel):
+  event: Literal["add_region_mermaid"]
+  id: str
+  region_id: str
+  title: str | None = None
+  diagram_type: Literal["flowchart", "sequenceDiagram", "stateDiagram-v2", "erDiagram", "classDiagram"]
+  definition: str
 
 
 class InitSurfaceDelta(BaseModel):
@@ -105,10 +180,11 @@ class AddSectionDelta(BaseModel):
   event: Literal["add_section"]
   id: str
   parent_id: str
-  layout: Literal["Card", "Column", "Row", "List"]
+  layout: Literal["Card", "Column", "Row", "List", "Timeline"]
   title: str | None = None
   description: str | None = None
   order: int | None = None
+  appearance: str | None = None
 
 
 class AddTextDelta(BaseModel):
@@ -116,7 +192,7 @@ class AddTextDelta(BaseModel):
   id: str
   parent_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
 
 
 class AddKeyValueDelta(BaseModel):
@@ -158,13 +234,32 @@ class FlowDiagramEdge(BaseModel):
   label: str | None = None
 
 
-class AddFlowDiagramDelta(BaseModel):
-  event: Literal["add_flow_diagram"]
+class AddTableDelta(BaseModel):
+  event: Literal["add_table"]
   id: str
   parent_id: str
-  title: str
-  nodes: list[FlowDiagramNode]
-  edges: list[FlowDiagramEdge]
+  spec_json: str
+
+
+class AddLineChartDelta(BaseModel):
+  event: Literal["add_line_chart"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
+class AddPieChartDelta(BaseModel):
+  event: Literal["add_pie_chart"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
+class AddMermaidDelta(BaseModel):
+  event: Literal["add_mermaid"]
+  id: str
+  parent_id: str
+  spec_json: str
 
 
 class ChoiceOption(BaseModel):
@@ -197,21 +292,14 @@ class AddDividerDelta(BaseModel):
   parent_id: str
 
 
-class AddRegionFlowDiagramDelta(BaseModel):
-  event: Literal["add_region_flow_diagram"]
-  id: str
-  region_id: str
-  title: str
-  nodes: list[FlowDiagramNode]
-  edges: list[FlowDiagramEdge]
-
-
 class AppendListItemDelta(BaseModel):
   event: Literal["append_list_item"]
   id: str
   parent_id: str
   title: str
   detail: str | None = None
+  title_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
+  detail_usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] | None = None
 
 
 class FinalizeDelta(BaseModel):
@@ -228,7 +316,10 @@ SkeletonDelta = Annotated[
     | AddRegionInputDelta
     | AddRegionDividerDelta
     | AppendRegionListItemDelta
-    | AddRegionFlowDiagramDelta
+    | AddRegionTableDelta
+    | AddRegionLineChartDelta
+    | AddRegionPieChartDelta
+    | AddRegionMermaidDelta
     | FinalizeDelta,
     Field(discriminator="event"),
 ]
@@ -243,7 +334,10 @@ Delta = Annotated[
     | AddKeyValueDelta
     | AddImageDelta
     | AddButtonDelta
-    | AddFlowDiagramDelta
+    | AddTableDelta
+    | AddLineChartDelta
+    | AddPieChartDelta
+    | AddMermaidDelta
     | AddInputDelta
     | AddDividerDelta
     | AppendListItemDelta

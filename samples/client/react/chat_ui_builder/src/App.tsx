@@ -2,6 +2,12 @@ import {FormEvent, type Dispatch, type SetStateAction, useCallback, useMemo, use
 import {A2UIProvider, A2UIRenderer, ComponentRegistry, useA2UIActions} from '@a2ui/react';
 import type {Types} from '@a2ui/react';
 import {FlowDiagram} from './components/FlowDiagram';
+import {LineChart} from './components/LineChart';
+import {Mermaid} from './components/Mermaid';
+import {PieChart} from './components/PieChart';
+import {Table} from './components/Table';
+import {Timeline} from './components/Timeline';
+import {TimelineItem} from './components/TimelineItem';
 import {cn} from './lib/cn';
 
 const DEFAULT_API_BASE = 'http://localhost:8010';
@@ -30,6 +36,24 @@ const registry = ComponentRegistry.getInstance();
 if (!registry.has('FlowDiagram')) {
   registry.register('FlowDiagram', {component: FlowDiagram});
 }
+if (!registry.has('Timeline')) {
+  registry.register('Timeline', {component: Timeline});
+}
+if (!registry.has('TimelineItem')) {
+  registry.register('TimelineItem', {component: TimelineItem});
+}
+if (!registry.has('Table')) {
+  registry.register('Table', {component: Table});
+}
+if (!registry.has('LineChart')) {
+  registry.register('LineChart', {component: LineChart});
+}
+if (!registry.has('PieChart')) {
+  registry.register('PieChart', {component: PieChart});
+}
+if (!registry.has('Mermaid')) {
+  registry.register('Mermaid', {component: Mermaid});
+}
 
 interface ShellProps {
   onAction: (message: Types.A2UIClientEventMessage) => void;
@@ -46,6 +70,7 @@ function pushEntry(setter: Dispatch<SetStateAction<string[]>>, entry: string) {
 function Shell({onAction}: ShellProps) {
   const {processMessages, clearSurfaces} = useA2UIActions();
   const [input, setInput] = useState(EXAMPLES[0]);
+  const [sourceDataInput, setSourceDataInput] = useState('');
   const [status, setStatus] = useState<'idle' | 'streaming' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [apiBase, setApiBase] = useState(DEFAULT_API_BASE);
@@ -55,7 +80,7 @@ function Shell({onAction}: ShellProps) {
   const abortRef = useRef<AbortController | null>(null);
 
   const submit = useCallback(
-    async (message: string) => {
+    async (message: string, sourceDataText: string) => {
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -65,12 +90,25 @@ function Shell({onAction}: ShellProps) {
       setError(null);
       pushEntry(setHistory, `用户输入：${message}`);
       pushEntry(setHistory, `请求地址：${apiBase}/api/chat/stream`);
+      if (sourceDataText.trim()) {
+        pushEntry(setHistory, '请求模式：source_data + user_query');
+      }
 
       try {
+        let payload: Record<string, unknown>;
+        if (sourceDataText.trim()) {
+          payload = {
+            source_data: JSON.parse(sourceDataText),
+            user_query: message,
+          };
+        } else {
+          payload = {message};
+        }
+
         const response = await fetch(`${apiBase}/api/chat/stream`, {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({message}),
+          body: JSON.stringify(payload),
           signal: controller.signal,
         });
 
@@ -128,9 +166,9 @@ function Shell({onAction}: ShellProps) {
       event.preventDefault();
       const trimmed = input.trim();
       if (!trimmed) return;
-      await submit(trimmed);
+      await submit(trimmed, sourceDataInput);
     },
-    [input, submit]
+    [input, sourceDataInput, submit]
   );
 
   const exampleButtons = useMemo(
@@ -185,6 +223,15 @@ function Shell({onAction}: ShellProps) {
           <label className="field-group">
             <span>需求描述</span>
             <textarea value={input} onChange={(e) => setInput(e.target.value)} rows={10} />
+          </label>
+          <label className="field-group">
+            <span>source_data（可选 JSON）</span>
+            <textarea
+              value={sourceDataInput}
+              onChange={(e) => setSourceDataInput(e.target.value)}
+              rows={10}
+              placeholder='留空时按 message 模式调用；填写后按 source_data + user_query 模式调用'
+            />
           </label>
           <div className="button-row">
             <button

@@ -9,11 +9,14 @@ from models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
-    AddFlowDiagramDelta,
     AddImageDelta,
     AddInputDelta,
     AddKeyValueDelta,
+    AddLineChartDelta,
+    AddMermaidDelta,
+    AddPieChartDelta,
     AddSectionDelta,
+    AddTableDelta,
     AddTextDelta,
     AppendListItemDelta,
     ComponentNode,
@@ -29,6 +32,7 @@ class ContainerState:
   component_id: str
   container_type: str
   child_ids: list[str] = field(default_factory=list)
+  appearance: str | None = None
 
 
 class FrameCompiler:
@@ -42,8 +46,7 @@ class FrameCompiler:
     self.aliases: dict[str, str] = {}
     self.auto_sections: dict[str, str] = {}
     self.page_parent_id = self.root_id
-    self.child_order: dict[tuple[str, str], tuple[int, int]] = {}
-    self._insertion_counter = 0
+    self.local_child_order: dict[tuple[str, str], int] = {}
 
   def apply(self, delta: Any) -> list[A2UIFrame]:
     logger.info('Compiling delta type=%s payload=%s', type(delta).__name__, delta.model_dump())
@@ -59,12 +62,18 @@ class FrameCompiler:
       return self._add_image(delta)
     if isinstance(delta, AddButtonDelta):
       return self._add_button(delta)
-    if isinstance(delta, AddFlowDiagramDelta):
-      return self._add_flow_diagram(delta)
     if isinstance(delta, AddInputDelta):
       return self._add_input(delta)
     if isinstance(delta, AddDividerDelta):
       return self._add_divider(delta)
+    if isinstance(delta, AddTableDelta):
+      return self._add_table(delta)
+    if isinstance(delta, AddLineChartDelta):
+      return self._add_line_chart(delta)
+    if isinstance(delta, AddPieChartDelta):
+      return self._add_pie_chart(delta)
+    if isinstance(delta, AddMermaidDelta):
+      return self._add_mermaid(delta)
     if isinstance(delta, AppendListItemDelta):
       return self._append_list_item(delta)
     return []
@@ -112,10 +121,14 @@ class FrameCompiler:
     canonical_parent_id = self._resolve_parent_id(parent_id)
     if child_id not in parent.child_ids:
       parent.child_ids.append(child_id)
-    self._insertion_counter += 1
-    priority = order if order is not None else 10_000 + self._insertion_counter
-    self.child_order[(canonical_parent_id, child_id)] = (priority, self._insertion_counter)
-    parent.child_ids.sort(key=lambda existing_id: self.child_order.get((canonical_parent_id, existing_id), (99_999, 99_999)))
+    if order is None:
+      return
+    if canonical_parent_id == self.page_parent_id:
+      return
+    self.local_child_order[(canonical_parent_id, child_id)] = order
+    parent.child_ids.sort(
+        key=lambda existing_id: self.local_child_order.get((canonical_parent_id, existing_id), 10_000)
+    )
 
   def _ensure_auto_section(self, bucket: str, title: str) -> list[A2UIFrame]:
     existing = self.auto_sections.get(bucket)
@@ -155,13 +168,14 @@ class FrameCompiler:
   def _container_component(self, container: ContainerState) -> ComponentNode:
     explicit_children = list(container.child_ids)
     if container.container_type == 'Row':
-      component = {
-          'Row': {
-              'children': {'explicitList': explicit_children},
-              'alignment': 'center',
-              'distribution': 'start',
-          }
+      row_payload: dict[str, Any] = {
+          'children': {'explicitList': explicit_children},
+          'alignment': 'center',
+          'distribution': 'start',
       }
+      if container.appearance:
+        row_payload['appearance'] = container.appearance
+      component = {'Row': row_payload}
     elif container.container_type == 'List':
       component = {
           'List': {
@@ -170,14 +184,21 @@ class FrameCompiler:
               'alignment': 'stretch',
           }
       }
-    else:
+    elif container.container_type == 'Timeline':
       component = {
-          'Column': {
+          'Timeline': {
               'children': {'explicitList': explicit_children},
-              'alignment': 'stretch',
-              'distribution': 'start',
           }
       }
+    else:
+      column_payload: dict[str, Any] = {
+          'children': {'explicitList': explicit_children},
+          'alignment': 'stretch',
+          'distribution': 'start',
+      }
+      if container.appearance:
+        column_payload['appearance'] = container.appearance
+      component = {'Column': column_payload}
     return ComponentNode(id=container.component_id, component=component)
 
   def _init_surface(self, delta: InitSurfaceDelta) -> list[A2UIFrame]:
@@ -188,8 +209,7 @@ class FrameCompiler:
     self.containers = {
         self.root_id: ContainerState(component_id=self.root_id, container_type='Column')
     }
-    self.child_order = {}
-    self._insertion_counter = 0
+    self.local_child_order = {}
 
     frame_card_id = self._register_id('surface_frame_card')
     frame_content_id = self._helper_id(frame_card_id, 'content')
@@ -256,11 +276,6 @@ class FrameCompiler:
     self.containers[frame_card_id].child_ids = [intro_card_id]
     self.containers[intro_card_id] = ContainerState(component_id=intro_content_id, container_type='Column')
     self.containers[intro_card_id].child_ids = [title_id] + ([summary_id] if delta.summary else [])
-    self.child_order[(self.root_id, frame_card_id)] = (0, 0)
-    self.child_order[(frame_card_id, intro_card_id)] = (0, 0)
-    self.child_order[(intro_card_id, title_id)] = (0, 0)
-    if delta.summary:
-      self.child_order[(intro_card_id, summary_id)] = (1, 1)
     self.auto_sections = {}
     self.page_parent_id = frame_card_id
 
@@ -326,7 +341,11 @@ class FrameCompiler:
       )
     else:
       self._append_child(actual_parent_id, section_id, delta.order)
-      self.containers[section_id] = ContainerState(component_id=section_id, container_type=delta.layout)
+      self.containers[section_id] = ContainerState(
+          component_id=section_id,
+          container_type=delta.layout,
+          appearance=delta.appearance,
+      )
       explicit_children: list[str] = []
       if delta.title:
         title_id = self._helper_id(section_id, 'title')
@@ -448,36 +467,72 @@ class FrameCompiler:
         self._data_update(f'/content/{button_id}', [DataMapEntry(key='label', valueString=delta.label)]),
     ]
 
-  def _add_flow_diagram(self, delta: AddFlowDiagramDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', '流程图')
+  def _add_table(self, delta: AddTableDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'details', '结构化数据')
+    parent = self._ensure_container(parent_id)
+    table_id = self._register_id(delta.id)
+    if table_id == parent.component_id:
+      raise ValueError(f'Table id {table_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, table_id)
+    parent_update = self._container_component(parent)
+    table_component = ComponentNode(
+        id=table_id,
+        component={'Table': {'spec': {'path': f'/content/{table_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, table_component]),
+        self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_line_chart(self, delta: AddLineChartDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'insights', '趋势图')
+    parent = self._ensure_container(parent_id)
+    chart_id = self._register_id(delta.id)
+    if chart_id == parent.component_id:
+      raise ValueError(f'Line chart id {chart_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, chart_id)
+    parent_update = self._container_component(parent)
+    chart_component = ComponentNode(
+        id=chart_id,
+        component={'LineChart': {'spec': {'path': f'/content/{chart_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, chart_component]),
+        self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_pie_chart(self, delta: AddPieChartDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'insights', '占比图')
+    parent = self._ensure_container(parent_id)
+    chart_id = self._register_id(delta.id)
+    if chart_id == parent.component_id:
+      raise ValueError(f'Pie chart id {chart_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, chart_id)
+    parent_update = self._container_component(parent)
+    chart_component = ComponentNode(
+        id=chart_id,
+        component={'PieChart': {'spec': {'path': f'/content/{chart_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, chart_component]),
+        self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_mermaid(self, delta: AddMermaidDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', 'Mermaid 图')
     parent = self._ensure_container(parent_id)
     diagram_id = self._register_id(delta.id)
     if diagram_id == parent.component_id:
-      raise ValueError(f'Flow diagram id {diagram_id} cannot equal parent id {parent.component_id}')
+      raise ValueError(f'Mermaid id {diagram_id} cannot equal parent id {parent.component_id}')
     self._append_child(parent_id, diagram_id)
     parent_update = self._container_component(parent)
     diagram_component = ComponentNode(
         id=diagram_id,
-        component={
-            'FlowDiagram': {
-                'spec': {'path': f'/content/{diagram_id}/spec'},
-            }
-        },
-    )
-    spec_json = json.dumps(
-        {
-            'title': delta.title,
-            'nodes': [node.model_dump() for node in delta.nodes],
-            'edges': [edge.model_dump() for edge in delta.edges],
-        },
-        ensure_ascii=False,
+        component={'Mermaid': {'spec': {'path': f'/content/{diagram_id}/spec'}}},
     )
     return prefix_frames + [
         self._surface_update([parent_update, diagram_component]),
-        self._data_update(
-            f'/content/{diagram_id}',
-            [DataMapEntry(key='spec', valueString=spec_json)],
-        ),
+        self._data_update(f'/content/{diagram_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:
@@ -570,15 +625,31 @@ class FrameCompiler:
     self._append_child(parent_id, wrapper_id)
     parent_update = self._container_component(parent)
     wrapper_children = [title_id] + ([detail_id] if delta.detail else [])
-    wrapper = ComponentNode(
-        id=wrapper_id,
-        component={
-            'Card': {
-                'child': self._helper_id(item_prefix, 'content')
-            }
-        },
-    )
-    content_id = wrapper.component['Card']['child']
+    content_id = self._helper_id(item_prefix, 'content')
+    timeline_card_id = self._helper_id(item_prefix, 'card') if parent.container_type == 'Timeline' else None
+    if parent.container_type == 'Timeline':
+      wrapper = ComponentNode(
+          id=wrapper_id,
+          component={
+              'TimelineItem': {
+                  'child': timeline_card_id,
+              }
+          },
+      )
+    else:
+      wrapper = ComponentNode(
+          id=wrapper_id,
+          component={
+              'Card': {
+                  'child': content_id
+              }
+          },
+      )
+
+    item_surface_components = [parent_update, wrapper]
+    if timeline_card_id:
+      item_surface_components.append(ComponentNode(id=timeline_card_id, component={'Card': {'child': content_id}}))
+
     content = ComponentNode(
         id=content_id,
         component={
@@ -591,15 +662,25 @@ class FrameCompiler:
     )
     title = ComponentNode(
         id=title_id,
-        component={'Text': {'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/title'}, 'usageHint': 'body'}},
+        component={
+            'Text': {
+                'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/title'},
+                'usageHint': delta.title_usage_hint or 'body',
+            }
+        },
     )
-    components = [parent_update, wrapper, content, title]
+    components = item_surface_components + [content, title]
     contents = [DataMapEntry(key='title', valueString=delta.title)]
     if delta.detail:
       components.append(
           ComponentNode(
               id=detail_id,
-              component={'Text': {'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/detail'}, 'usageHint': 'caption'}},
+              component={
+                  'Text': {
+                      'text': {'path': f'/lists/{parent.component_id}/{item_prefix}/detail'},
+                      'usageHint': delta.detail_usage_hint or 'caption',
+                  }
+              },
           )
       )
       contents.append(DataMapEntry(key='detail', valueString=delta.detail))

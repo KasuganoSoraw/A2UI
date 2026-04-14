@@ -4,6 +4,8 @@
 它通过 LiteLLM 调用本地 OpenAI-compatible 模型，要求模型流式输出 **planning delta**（一行一个 JSON 事件），
 后端解析后直接编译成 A2UI v0.8 数据帧并流式返回前端。
 
+当前定位：A2UI 是**上游 Agent 结果展示层**，负责组织和呈现输入数据，不负责补充新的业务结论或解决方案。
+
 ## 为什么需要这个 demo
 
 和固定领域模板示例不同，这个 demo 不把模型锁死在单一业务域里。
@@ -49,8 +51,17 @@ uv run .
 请求体：
 
 ```json
-{ "message": "请生成一个客户看板，包含客户等级、最近订单和跟进按钮。" }
+{
+  "source_data": {
+    "summary": "模型推理耗时上升",
+    "metrics": {"latency_p95_ms": 920, "error_rate": "2.1%"},
+    "logs": ["10:32 timeout request_id=abc123", "10:34 upstream reset"]
+  },
+  "user_query": "帮我看一下线上推理服务发生了什么"
+}
 ```
+
+兼容旧格式（`message`）仍可使用，但推荐以 `source_data` 作为主输入。
 
 返回：
 - `application/x-ndjson`
@@ -70,6 +81,7 @@ uv run .
 - 前端按帧渐进式渲染
 
 当前 demo 不再包含 IntentPlan fallback 或 legacy line-by-line fallback。
+并且默认启用“展示层约束”：若输入未明确提供 actions/recommendations/next_steps，不会渲染 actions 区域。
 
 ## 前端 demo
 
