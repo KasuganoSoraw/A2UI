@@ -1,13 +1,15 @@
 # Chat UI Builder Demo
 
 这个 demo 会把自然语言需求转换成增量 A2UI 数据帧。
-它通过 LiteLLM 调用本地 OpenAI-compatible 模型，让模型输出 **Intent Plan JSON**，
-后端再经过 Design Lint、Layout Policy Engine、Layout IR 与 A2UI Compiler，把语义规划编译成严格的 A2UI v0.8 数据帧并流式返回给前端。
+它通过 LiteLLM 调用本地 OpenAI-compatible 模型，要求模型流式输出 **planning delta**（一行一个 JSON 事件），
+后端解析后直接编译成 A2UI v0.8 数据帧并流式返回前端。
+
+当前定位：A2UI 是**上游 Agent 结果展示层**，负责组织和呈现输入数据，不负责补充新的业务结论或解决方案。
 
 ## 为什么需要这个 demo
 
 和固定领域模板示例不同，这个 demo 不把模型锁死在单一业务域里。
-模型会先输出页面意图规划，后端再负责布局骨架、容器补全、分栏规则与 A2UI frame 生成。
+模型会流式输出页面规划事件，后端负责把事件增量编译成可渲染帧。
 
 ## 本地模型配置
 
@@ -29,8 +31,8 @@ export MAX_LOG_CHARS="1200"
 后端会记录：
 - LLM 调用端点、模型名、温度
 - 发送给 LLM 的消息
-- LLM 的流式 chunk / Intent Plan JSON
-- Intent Plan、Layout IR 与编译后的 A2UI 骨架帧摘要
+- LLM 的流式 chunk / planning delta
+- planning delta 与编译后的 A2UI 骨架帧摘要
 - 编译后的 A2UI 数据帧
 
 ## 启动后端
@@ -49,8 +51,17 @@ uv run .
 请求体：
 
 ```json
-{ "message": "请生成一个客户看板，包含客户等级、最近订单和跟进按钮。" }
+{
+  "source_data": {
+    "summary": "模型推理耗时上升",
+    "metrics": {"latency_p95_ms": 920, "error_rate": "2.1%"},
+    "logs": ["10:32 timeout request_id=abc123", "10:34 upstream reset"]
+  },
+  "user_query": "帮我看一下线上推理服务发生了什么"
+}
 ```
+
+兼容旧格式（`message`）仍可使用，但推荐以 `source_data` 作为主输入。
 
 返回：
 - `application/x-ndjson`
@@ -58,19 +69,19 @@ uv run .
 
 ## 中间层说明
 
-当前版本的新主路径不再要求模型直接输出底层 `add_section / add_text / add_button` 组合，
-而是先输出：
+当前版本主路径：
 
-- `Intent Plan`：页面级意图（page kind / emphasis / density / sections / actions）
+- `init_plan / add_region* / finalize_plan` 等 planning delta 事件（逐行 JSON）
 
-后端会依次经过：
+后端链路：
 
-- `Design Lint`：补摘要、合并过多 section、限制主动作数量
-- `Layout Policy Engine`：根据页面类型与强调点选择骨架策略
-- `Layout IR`：表达页面骨架与区域关系，而不是直接输出 A2UI
-- `IntentFrameCompiler`：把 Layout IR 编译成 `beginRendering` / `surfaceUpdate` / `dataModelUpdate`
+- `PlanningDeltaStreamParser`：解析 LLM 流中的 planning delta 行
+- `SkeletonCompiler`：将 planning delta 编译成低层布局增量
+- `FrameCompiler`：输出 `beginRendering` / `surfaceUpdate` / `dataModelUpdate`
+- 前端按帧渐进式渲染
 
-旧的 skeleton / delta 协议仍保留为兼容 fallback，但不再是主流程。
+当前 demo 不再包含 IntentPlan fallback 或 legacy line-by-line fallback。
+并且默认启用“展示层约束”：若输入未明确提供 actions/recommendations/next_steps，不会渲染 actions 区域。
 
 ## 前端 demo
 

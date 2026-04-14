@@ -33,6 +33,7 @@ export const Row = memo(function Row({node, surfaceId}: A2UIComponentProps<Types
   // Match Lit's default values
   const alignment = props.alignment ?? 'stretch';
   const distribution = props.distribution ?? 'start';
+  const appearance = props.appearance;
 
   const children = Array.isArray(props.children) ? props.children : [];
 
@@ -45,6 +46,7 @@ export const Row = memo(function Row({node, surfaceId}: A2UIComponentProps<Types
       className="a2ui-row"
       data-alignment={alignment}
       data-distribution={distribution}
+      data-appearance={appearance}
       style={hostStyle}
     >
       <section

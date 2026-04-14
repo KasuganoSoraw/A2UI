@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 from uuid import uuid4
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from service import ChatUIService
 from settings import settings
@@ -19,13 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 class ChatRequest(BaseModel):
-  message: str
+  message: str | None = None
+  source_data: dict | list | str | int | float | bool | None = None
+  user_query: str | None = None
+
+  @model_validator(mode='after')
+  def ensure_non_empty_request(self) -> 'ChatRequest':
+    if self.source_data is None and not self.message:
+      raise ValueError('`source_data` 或 `message` 至少提供一个。')
+    return self
 
 
 app = FastAPI(title='A2UI Chat UI Builder')
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r'http://localhost:\d+',
+    allow_origins=['*'],
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -51,13 +59,38 @@ async def health() -> dict[str, str]:
   return {'status': 'ok'}
 
 
+@app.websocket('/ws/debug')
+async def ws_debug(websocket: WebSocket) -> None:
+  await websocket.accept()
+  logger.info('WS /ws/debug connected')
+  await websocket.send_text('connected')
+  try:
+    while True:
+      message = await websocket.receive_text()
+      logger.info('WS /ws/debug message=%s', message[: settings.max_log_chars])
+  except WebSocketDisconnect:
+    logger.info('WS /ws/debug disconnected')
+  except Exception:
+    logger.exception('WS /ws/debug error')
+
+
 @app.post('/api/chat/stream')
 async def chat_stream(payload: ChatRequest) -> StreamingResponse:
   request_id = uuid4().hex[:8]
-  logger.info('[%s] Incoming chat request message=%s', request_id, payload.message[: settings.max_log_chars])
+  logger.info(
+      '[%s] Incoming chat request user_query=%s source_data=%s',
+      request_id,
+      (payload.user_query or payload.message or '')[: settings.max_log_chars],
+      str(payload.source_data)[: settings.max_log_chars],
+  )
 
   async def frame_stream():
-    async for frame in service.stream_frames(payload.message, request_id=request_id):
+    async for frame in service.stream_frames(
+        user_message=payload.message,
+        source_data=payload.source_data,
+        user_query=payload.user_query,
+        request_id=request_id,
+    ):
       body = frame.model_dump_json(exclude_none=True)
       logger.info('[%s] Streaming frame body=%s', request_id, body[: settings.max_log_chars])
       yield body + '\n'
