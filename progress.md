@@ -31,3 +31,4 @@
 - 2026-04-09 任务：完成 region_archetypes 可读性重构；弱化模板抽象，改为各 role 显式创建 section 与显式 slot_parents，保留外部接口与布局行为等价。
 - 2026-04-14 任务：同步本地代码到远程分支 codex/remove-intentplan-and-legacy-fallback-logic-dxojnz 基线；按要求定点修改 app.py 的 CORS allow_origins、收敛 prompting init_plan.layout_hint 到 auto|single_column，并新增“文字与条目可附加emoji”约束；models.AddRegionTextDelta 已一致无需改动。
 - 2026-04-14 任务：新增后端 /ws/debug WebSocket 调试接口（仅 app.py 最小改动）；实现连接日志、connected 确认消息、receive_text 循环消息日志、断开与异常日志，用于前端联调通路验证。
+- 2026-04-14 任务：新增 streaming 独立骨架基座；在 chat_ui_builder/streaming 下落地 stream event 模型与 StreamCompiler（block-first/dataset-first/append-only），复用 FrameCompiler 编译 text/facts/list/table/final summary，并采用 table rows 缓存+全量 spec 刷新策略完成 append_table_rows 最小可用实现。
