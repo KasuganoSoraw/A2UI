@@ -32,3 +32,4 @@
 - 2026-04-14 任务：同步本地代码到远程分支 codex/remove-intentplan-and-legacy-fallback-logic-dxojnz 基线；按要求定点修改 app.py 的 CORS allow_origins、收敛 prompting init_plan.layout_hint 到 auto|single_column，并新增“文字与条目可附加emoji”约束；models.AddRegionTextDelta 已一致无需改动。
 - 2026-04-14 任务：新增后端 /ws/debug WebSocket 调试接口（仅 app.py 最小改动）；实现连接日志、connected 确认消息、receive_text 循环消息日志、断开与异常日志，用于前端联调通路验证。
 - 2026-04-14 任务：新增 streaming 独立骨架基座；在 chat_ui_builder/streaming 下落地 stream event 模型与 StreamCompiler（block-first/dataset-first/append-only），复用 FrameCompiler 编译 text/facts/list/table/final summary，并采用 table rows 缓存+全量 spec 刷新策略完成 append_table_rows 最小可用实现。
+- 2026-04-14 任务：完成 streaming 定向修正；新增 update_table_spec low-level delta 以支持同表数据刷新（避免 append_table_rows 重复创建 table），修复 text block 追加编号递增、list block 外层+list_host 结构，以及 init_stream_surface 默认 summary 去过程化。

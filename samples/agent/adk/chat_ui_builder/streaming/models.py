@@ -40,6 +40,7 @@ class InitStreamSurfaceEvent(BaseModel):
   event: Literal['init_stream_surface']
   surface_id: str = 'main'
   title: str | None = None
+  summary: str | None = None
 
 
 class CreateTextBlockEvent(BaseModel):
