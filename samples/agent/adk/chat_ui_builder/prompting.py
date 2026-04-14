@@ -10,7 +10,7 @@ PLANNING_DELTA_CONTRACT = [
         'summary': 'optional string',
         'page_kind': 'overview | dashboard | approval_workflow | form | detail | workflow',
         'emphasis': 'balanced | action-first | analytics-first | content-first',
-        'layout_hint': 'auto | single_column | two_column | hero_plus_two_column | hero_plus_action_panel',
+        'layout_hint': 'auto | single_column',
         'theme': {'primaryColor': 'optional #RRGGBB string', 'font': 'optional string'},
     },
     {
@@ -193,9 +193,10 @@ Mermaid 使用限制：
 3. `init_plan.title` 是整页唯一 `h1`；不要在 hero 或其他 region 重复页面标题。
 4. `hero` 只用于概览、摘要、关键信息和最重要 facts，不是页面标题复读区。
 5. 默认避免大段搬运原文；允许基于输入做提炼、归并、分组、排序，但必须可回溯到输入依据。
-6. 对原始 JSON、日志、evidence、报文，只在“原始结构本身就是用户要查看的对象”时展示。
-7. `warning` 仅用于已有风险、异常、注意事项的展示提示，不代表新增结论。
-8. 页面应按“页面 -> 区域 -> 条目”顺序流式输出，不要等全部想完再一次性输出。
+6. 文字与条目部分可以附加合适的emoji来展示。
+7. 对原始 JSON、日志、evidence、报文，只在“原始结构本身就是用户要查看的对象”时展示。
+8. `warning` 仅用于已有风险、异常、注意事项的展示提示，不代表新增结论。
+9. 页面应按“页面 -> 区域 -> 条目”顺序流式输出，不要等全部想完再一次性输出。
 
 role 预算规则：
 - 每页默认不超过 3 个主 region

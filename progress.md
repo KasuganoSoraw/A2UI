@@ -29,3 +29,4 @@
 - 2026-04-09 任务：完成结构收敛重构；移除 Skeleton bucket 中间层与 role->bucket 映射，region 直接挂页面主父容器；FrameCompiler 去除跨 region 全局排序并保留局部 order 稳定性。
 - 2026-04-09 任务：完成 ArrangementSemantics 语义收敛；region_archetypes 改为 body_layout/facts_layout/actions_layout 直白字段并统一稳定 section id，skeleton_compiler 的 _arrangement_for 对齐为新映射且移除旧术语分支。
 - 2026-04-09 任务：完成 region_archetypes 可读性重构；弱化模板抽象，改为各 role 显式创建 section 与显式 slot_parents，保留外部接口与布局行为等价。
+- 2026-04-14 任务：同步本地代码到远程分支 codex/remove-intentplan-and-legacy-fallback-logic-dxojnz 基线；按要求定点修改 app.py 的 CORS allow_origins、收敛 prompting init_plan.layout_hint 到 auto|single_column，并新增“文字与条目可附加emoji”约束；models.AddRegionTextDelta 已一致无需改动。
