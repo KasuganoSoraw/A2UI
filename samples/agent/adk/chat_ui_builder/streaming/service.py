@@ -10,7 +10,17 @@ from pydantic import BaseModel, Field
 
 from models import A2UIFrame
 from settings import settings
-from streaming.models import STREAM_EVENT_ADAPTER, StreamEvent
+from streaming.models import (
+    STREAM_EVENT_ADAPTER,
+    CreateFactsBlockEvent,
+    CreateListBlockEvent,
+    CreateTableBlockEvent,
+    CreateTextBlockEvent,
+    InitStreamSurfaceEvent,
+    SetFinalSummaryFactsEvent,
+    SetFinalSummaryTextEvent,
+    StreamEvent,
+)
 from streaming.prompt import build_binding_messages, build_stream_event_messages
 from streaming.stream_compiler import StreamCompiler
 
@@ -122,6 +132,10 @@ class StreamingPromptService:
     frames: list[A2UIFrame] = []
     for event in events:
       frames.extend(self._stream_compiler.apply(event))
+    self._apply_events_to_page_state(
+        events=events,
+        page_state=projection_input.page_state_summary,
+    )
 
     return {
         'segment_id': projection_input.segment_id,
@@ -129,6 +143,7 @@ class StreamingPromptService:
         'events': [event.model_dump(exclude_none=True) for event in events],
         'frames': frames,
         'binding_state_summary': projection_input.binding_state_summary.model_dump(),
+        'page_state_summary': projection_input.page_state_summary.model_dump(),
     }
 
   async def _default_llm_caller(self, messages: list[dict[str, str]]) -> str:
@@ -248,3 +263,52 @@ class StreamingPromptService:
         continue
       events.append(event)
     return events
+
+  def _apply_events_to_page_state(
+      self,
+      *,
+      events: list[StreamEvent],
+      page_state: PageStateSummary,
+  ) -> None:
+    """基于本轮已接受事件闭环更新 page_state_summary。
+
+    后端在这里先更新页面状态，保证下一轮请求能直接复用最新上下文，
+    避免因为状态滞后导致重复 init_surface 或重复 create block。
+    """
+
+    existing_by_block_id = {block.block_id: block for block in page_state.blocks}
+
+    for event in events:
+      if isinstance(event, InitStreamSurfaceEvent):
+        page_state.surface_initialized = True
+        continue
+
+      block_id: str | None = None
+      block_type: Literal['text', 'facts', 'list', 'table'] | None = None
+      if isinstance(event, CreateTextBlockEvent):
+        block_id = event.block_id
+        block_type = 'text'
+      elif isinstance(event, CreateFactsBlockEvent):
+        block_id = event.block_id
+        block_type = 'facts'
+      elif isinstance(event, CreateListBlockEvent):
+        block_id = event.block_id
+        block_type = 'list'
+      elif isinstance(event, CreateTableBlockEvent):
+        block_id = event.block_id
+        block_type = 'table'
+      elif isinstance(event, SetFinalSummaryTextEvent):
+        block_id = event.block_id
+        block_type = 'text'
+      elif isinstance(event, SetFinalSummaryFactsEvent):
+        block_id = event.block_id
+        block_type = 'facts'
+
+      if not block_id or not block_type:
+        continue
+      if block_id in existing_by_block_id:
+        continue
+
+      block_summary = PageBlockSummary(block_id=block_id, block_type=block_type)
+      page_state.blocks.append(block_summary)
+      existing_by_block_id[block_id] = block_summary

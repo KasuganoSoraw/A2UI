@@ -17,6 +17,7 @@ BINDING_SYSTEM_PROMPT = """你负责做流式展示绑定判断。
 - changes.new_array_items：本轮某个数组路径新增了多少个完整元素
 - changes.is_stream_end：这是不是最后一轮
 - binding_state_summary.bindings：历史绑定记录。若某条路径已绑定到某个 dataset/block，则后续相同内容应优先继续使用这个 dataset/block
+- dataset_id：不是随便编号，表示“语义上属于同一批内容”的分组
 
 你的任务：
 根据 visible_snapshot、changes、binding_state_summary、page_state_summary，
@@ -45,13 +46,14 @@ BINDING_SYSTEM_PROMPT = """你负责做流式展示绑定判断。
 
 规则：
 1. 只根据当前输入做判断。
-2. 如果本轮新增内容明显属于已有 dataset，则沿用该 dataset，并设置 should_create_new_block=false。
-3. 只有当本轮新增内容明显不属于任何已有 dataset 时，才新建 dataset，并设置 should_create_new_block=true。
+2. 如果本轮新增内容与历史某个 dataset 属于同一组语义内容，则沿用该 dataset，并设置 should_create_new_block=false。
+3. 只有当本轮新增内容明显属于新的语义分组时，才新建 dataset，并设置 should_create_new_block=true。
 4. target_block_type 只能是：text、facts、list、table。
-5. 同一批数据只能绑定一个主 block，不能混合展示。
+5. 同一 dataset 应继续写入同一个 block，不要拆成多个主 block。
 6. evidence_paths 必须填写，表示这条 decision 主要依据哪些 JSON 路径。
 7. 如果当前还没有足够稳定、值得展示的新内容，可以输出空 decisions。
-8. 命名应简洁清楚，例如：overview_1、items_1、summary_1；对应 block id 应与类型一致。
+8. binding_state_summary.bindings 用于告诉你哪些语义分组已经存在。
+9. 命名应简洁清楚，例如：overview_1、items_1、summary_1；对应 block id 应与类型一致。
 """
 
 

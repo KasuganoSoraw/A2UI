@@ -34,3 +34,4 @@
 - 2026-04-14 任务：新增 streaming 独立骨架基座；在 chat_ui_builder/streaming 下落地 stream event 模型与 StreamCompiler（block-first/dataset-first/append-only），复用 FrameCompiler 编译 text/facts/list/table/final summary，并采用 table rows 缓存+全量 spec 刷新策略完成 append_table_rows 最小可用实现。
 - 2026-04-14 任务：完成 streaming 定向修正；新增 update_table_spec low-level delta 以支持同表数据刷新（避免 append_table_rows 重复创建 table），修复 text block 追加编号递增、list block 外层+list_host 结构，以及 init_stream_surface 默认 summary 去过程化。
 - 2026-04-15 任务：新增 streaming 两阶段 prompt 与最小 service 串联；落地 binding_prompt/stream_event_prompt（短提示词），新增 StreamingPromptService 完成“第一阶段判别->accepted decisions 更新 binding_state_summary->第二阶段事件生成->StreamCompiler 编译 frames”闭环。
+- 2026-04-15 任务：完成 streaming 两阶段定向修正；在 service 中新增 page_state_summary 闭环更新（surface_initialized + blocks 去重回灌）并随返回结果输出，同时精修 binding prompt 对 dataset=语义分组 的短说明，稳定“沿用/新建 dataset”判断。
