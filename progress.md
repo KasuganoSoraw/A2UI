@@ -36,3 +36,4 @@
 - 2026-04-15 任务：新增 streaming 两阶段 prompt 与最小 service 串联；落地 binding_prompt/stream_event_prompt（短提示词），新增 StreamingPromptService 完成“第一阶段判别->accepted decisions 更新 binding_state_summary->第二阶段事件生成->StreamCompiler 编译 frames”闭环。
 - 2026-04-15 任务：完成 streaming 两阶段定向修正；在 service 中新增 page_state_summary 闭环更新（surface_initialized + blocks 去重回灌）并随返回结果输出，同时精修 binding prompt 对 dataset=语义分组 的短说明，稳定“沿用/新建 dataset”判断。
 - 2026-04-15 任务：新增 streaming/json_extractor 工程层提取器；实现断裂累计 JSON 的保守可见快照提取（支持数组前缀元素可见），并基于上一轮 snapshot 计算 changes（new_paths/new_array_items/is_stream_end），用于第一阶段 prompt 输入准备。
+- 2026-04-15 任务：修复 streaming/json_extractor 对部分可见子容器的保留逻辑；对象字段 value 未闭合但为非空 dict/list 时保留已可见部分，修复 case2/case3 失败；并将数组计数合并改为 max 防止嵌套路径后写覆盖。

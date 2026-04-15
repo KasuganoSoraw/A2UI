@@ -108,13 +108,13 @@ class JsonExtractor:
         child_path = f'{base_path.rstrip("/")}/{key}' if base_path != '/' else f'/{key}'
         child_counts = self._count_array_items_by_path(child, child_path)
         for path, count in child_counts.items():
-          counts[path] = count
+          counts[path] = max(counts.get(path, 0), count)
     elif isinstance(value, list):
       counts[base_path] = len(value)
       for item in value:
         child_counts = self._count_array_items_by_path(item, base_path)
         for path, count in child_counts.items():
-          counts[path] = count
+          counts[path] = max(counts.get(path, 0), count)
     return counts
 
   def _skip_ws(self, text: str, pos: int) -> int:
@@ -168,7 +168,13 @@ class JsonExtractor:
 
       value_result = self._parse_value(text, pos + 1)
       if not value_result.complete:
-        # key 对应 value 若未闭合，不应进入 snapshot。
+        # key 对应 value 未闭合时：
+        # - 若是“部分可见子容器”（非空 dict/list），应保留已可见部分
+        # - 若是半截基础类型（string/number/literal），不应进入 snapshot
+        if isinstance(value_result.value, dict) and value_result.value:
+          result[key] = value_result.value
+        elif isinstance(value_result.value, list) and value_result.value:
+          result[key] = value_result.value
         return _ParseResult(result, pos, False)
       result[key] = value_result.value
 
