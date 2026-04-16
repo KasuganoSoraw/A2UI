@@ -8,7 +8,6 @@ from typing import Any, Literal
 from litellm import acompletion
 from pydantic import BaseModel, Field
 
-from models import A2UIFrame
 from settings import settings
 from streaming.models import (
     STREAM_EVENT_ADAPTER,
@@ -142,40 +141,6 @@ class StreamingPromptService:
     self._llm_caller = llm_caller or self._default_llm_caller
     self._stream_compiler = stream_compiler or StreamCompiler()
 
-  async def project_segment(self, payload: StreamingProjectionInput | dict[str, Any]) -> dict[str, Any]:
-    """执行一轮两阶段投影，返回 decisions/events/frames 与最新 binding_state_summary。"""
-
-    frames: list[A2UIFrame] = []
-    final_item: dict[str, Any] | None = None
-    async for item in self.stream_project_segment(payload):
-      item_type = item.get('type')
-      if item_type == 'frame':
-        frame = item.get('frame')
-        if isinstance(frame, A2UIFrame):
-          frames.append(frame)
-      elif item_type == 'final':
-        final_item = item
-
-    if final_item is None:
-      input_payload = payload if isinstance(payload, StreamingProjectionInput) else StreamingProjectionInput.model_validate(payload)
-      return {
-          'segment_id': input_payload.segment_id,
-          'accepted_decisions': [],
-          'events': [],
-          'frames': [],
-          'binding_state_summary': input_payload.binding_state_summary.model_dump(),
-          'page_state_summary': input_payload.page_state_summary.model_dump(),
-      }
-
-    return {
-        'segment_id': final_item.get('segment_id'),
-        'accepted_decisions': final_item.get('accepted_decisions', []),
-        'events': final_item.get('events', []),
-        'frames': frames,
-        'binding_state_summary': final_item.get('binding_state_summary', {}),
-        'page_state_summary': final_item.get('page_state_summary', {}),
-    }
-
   async def stream_project_segment(
       self,
       payload: StreamingProjectionInput | dict[str, Any],
@@ -234,9 +199,7 @@ class StreamingPromptService:
     event_messages = build_stream_event_messages(event_payload)
 
     async for chunk_text in self._stream_event_chunks(event_messages):
-      logger.info('event stage chunk=%s', chunk_text)
       parsed_events = parser.feed(chunk_text)
-      logger.info('event stage parsed_events_count=%s', len(parsed_events))
       for event in parsed_events:
         events.append(event)
         event_frames = self._stream_compiler.apply(event)
@@ -250,7 +213,6 @@ class StreamingPromptService:
           yield {'type': 'frame', 'frame': frame}
 
     tail_events = parser.finish()
-    logger.info('event stage finish parsed_events_count=%s', len(tail_events))
     for event in tail_events:
       events.append(event)
       event_frames = self._stream_compiler.apply(event)
@@ -429,28 +391,6 @@ class StreamingPromptService:
         logger.info('binding decision rejected: append target not found decision=%s', decision.model_dump())
 
     return accepted
-
-  def _parse_stream_events(self, raw_text: str) -> list[StreamEvent]:
-    """解析第二阶段 NDJSON 输出。"""
-
-    events: list[StreamEvent] = []
-    for raw_line in (raw_text or '').splitlines():
-      line = raw_line.strip()
-      if not line:
-        continue
-      try:
-        payload = json.loads(line)
-      except json.JSONDecodeError:
-        logger.warning('skip invalid NDJSON line: %s', line)
-        continue
-
-      try:
-        event = STREAM_EVENT_ADAPTER.validate_python(payload)
-      except Exception as exc:  # noqa: BLE001
-        logger.warning('skip invalid stream event: %s payload=%s', exc, payload)
-        continue
-      events.append(event)
-    return events
 
   def _apply_events_to_page_state(
       self,

@@ -79,18 +79,13 @@ async def ws_debug(websocket: WebSocket) -> None:
 
 @app.websocket('/api/chat/ws/stream')
 async def chat_stream_ws(websocket: WebSocket) -> None:
-  """streaming ws 薄接口层。
-
-  说明：
-  - session 串行调度由 `streaming/runtime.py` 负责。
-  - 断裂累计 JSON 提取由 `streaming/json_extractor.py` 负责。
-  - 这里仅做：收消息 -> 调 runtime -> 发 frames。
-  """
+  """streaming ws 薄接口层：收消息 -> 调 runtime 流 -> 逐帧发送。"""
 
   await websocket.accept()
   # 后端必须有 session_id（runtime 需要按 session 维护状态），
   # 但不强制前端必须传：若 query 未提供，则在“本次连接建立时”生成并固定复用。
   session_id = websocket.query_params.get('session_id') or f'ws_{uuid4().hex}'
+  logger.info('WS /api/chat/ws/stream connected session_id=%s', session_id)
   await websocket.send_json({'type': 'streaming_connected', 'session_id': session_id})
 
   try:
@@ -99,60 +94,77 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
       try:
         payload = json.loads(raw_payload)
       except json.JSONDecodeError:
+        logger.warning('WS /api/chat/ws/stream invalid json session_id=%s', session_id)
         await websocket.send_json({'type': 'error', 'error': 'invalid json'})
         continue
 
       if payload.get('type') != 'sendMessage':
+        logger.warning('WS /api/chat/ws/stream unsupported type session_id=%s payload=%s', session_id, payload)
         await websocket.send_json({'type': 'error', 'error': 'unsupported message type'})
         continue
 
       if 'message' not in payload or 'final' not in payload:
+        logger.warning('WS /api/chat/ws/stream missing fields session_id=%s payload=%s', session_id, payload)
         await websocket.send_json({'type': 'error', 'error': 'missing required fields'})
         continue
 
       message = payload.get('message')
       is_final = payload.get('final')
       if not isinstance(is_final, bool):
+        logger.warning('WS /api/chat/ws/stream invalid final type session_id=%s value=%s', session_id, is_final)
         await websocket.send_json({'type': 'error', 'error': 'final must be boolean'})
         continue
 
       if not isinstance(message, str):
+        logger.warning('WS /api/chat/ws/stream invalid message type session_id=%s', session_id)
         await websocket.send_json({'type': 'error', 'error': 'missing required fields'})
         continue
 
-      runtime_result = await streaming_runtime.submit_snapshot(
+      async for item in streaming_runtime.stream_submit_snapshot(
           session_id=session_id,
           raw_text=message,
           is_stream_end=is_final,
-      )
-      processed = bool(runtime_result.get('processed'))
+      ):
+        item_type = item.get('type')
+        if item_type == 'frame':
+          frame = item.get('frame')
+          serializable_frame = frame.model_dump(exclude_none=True) if hasattr(frame, 'model_dump') else frame
+          await websocket.send_json(
+              {
+                  'type': 'a2ui_frame',
+                  'session_id': session_id,
+                  'final': is_final,
+                  'frame': serializable_frame,
+              }
+          )
+          logger.info('WS /api/chat/ws/stream sent frame session_id=%s', session_id)
+          continue
 
-      if not processed:
-        await websocket.send_json(
-            {
-                'type': 'streaming_status',
-                'session_id': session_id,
-                'processed': False,
-                'final': is_final,
-            }
-        )
-        continue
+        if item_type == 'final':
+          await websocket.send_json(
+              {
+                  'type': 'streaming_final',
+                  'session_id': session_id,
+                  'final': is_final,
+              }
+          )
+          logger.info('WS /api/chat/ws/stream sent final session_id=%s', session_id)
+          continue
 
-      projection_result = runtime_result.get('result') or {}
-      frames = projection_result.get('frames') or []
-      serializable_frames = [
-          frame.model_dump(exclude_none=True) if hasattr(frame, 'model_dump') else frame
-          for frame in frames
-      ]
-      await websocket.send_json(
-          {
-              'type': 'a2ui_frames',
-              'session_id': session_id,
-              'processed': True,
-              'final': is_final,
-              'frames': serializable_frames,
-          }
-      )
+        if item_type == 'status':
+          await websocket.send_json(
+              {
+                  'type': 'streaming_status',
+                  'session_id': session_id,
+                  'processed': False,
+                  'final': is_final,
+              }
+          )
+          logger.info(
+              'WS /api/chat/ws/stream status session_id=%s reason=%s',
+              session_id,
+              item.get('reason'),
+          )
   except WebSocketDisconnect:
     logger.info('WS /api/chat/ws/stream disconnected session_id=%s', session_id)
   except Exception:

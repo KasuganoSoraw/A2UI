@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import AsyncIterator
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -8,14 +10,11 @@ from pydantic import BaseModel, Field
 from streaming.json_extractor import JsonExtractionResult, JsonExtractor
 from streaming.service import StreamingPromptService
 
+logger = logging.getLogger(__name__)
+
 
 class StreamingSessionState(BaseModel):
-  """单个 streaming session 的最小运行态。
-
-  说明：
-  - runtime 只保留“最新累计 raw_text”，不保存历史小片段队列。
-  - runtime 负责调用时机控制，不负责语义判断与事件生成细节。
-  """
+  """单个 streaming session 的最小运行态。"""
 
   session_id: str
   latest_raw_text: str = ''
@@ -32,15 +31,13 @@ class StreamingSessionState(BaseModel):
 
 
 class StreamingRuntime:
-  """streaming runtime：session 级串行调度层。
+  """session 级流式调度层。
 
-  设计边界：
-  1) 维护 session 状态。
-  2) 控制同 session 串行处理。
-  3) 决定何时 extract。
-  4) 决定何时 project_segment。
-
-  不负责 HTTP/WebSocket，不重写 extractor/service，不做语义业务判断。
+  职责：
+  - 同 session 强串行
+  - latest raw_text 覆盖
+  - 触发时机控制
+  - 调用 service 的流式入口并把 frame 继续向上透传
   """
 
   def __init__(
@@ -54,22 +51,23 @@ class StreamingRuntime:
     self._sessions: dict[str, StreamingSessionState] = {}
     self._session_locks: dict[str, asyncio.Lock] = {}
 
-  async def submit_snapshot(
+  async def stream_submit_snapshot(
       self,
       *,
       session_id: str,
       raw_text: str,
       is_stream_end: bool,
-  ) -> dict[str, Any]:
-    """提交一份“累计快照文本”。
-
-    关键策略：
-    - 同 session 强串行：若当前正在 processing，本次只更新 latest_raw_text 并返回。
-    - 最新覆盖：不做 FIFO 排队，只保留 latest_raw_text。
-    """
+  ) -> AsyncIterator[dict[str, Any]]:
+    """流式提交累计快照文本。"""
 
     state = self._get_or_create_session(session_id)
     lock = self._get_session_lock(session_id)
+    logger.info(
+        'runtime receive snapshot session_id=%s raw_len=%s is_stream_end=%s',
+        session_id,
+        len(raw_text),
+        is_stream_end,
+    )
 
     async with lock:
       state.latest_raw_text = raw_text
@@ -77,38 +75,28 @@ class StreamingRuntime:
       state.has_pending_update = True
 
       if state.is_processing:
-        return {
+        logger.info('runtime skip start: session is processing session_id=%s', session_id)
+        yield {
+            'type': 'status',
             'session_id': session_id,
             'processed': False,
-            'result': None,
-            'state': self._build_state_view(state),
+            'reason': 'processing',
+            'final': is_stream_end,
         }
+        return
 
       state.is_processing = True
+      logger.info('runtime enter processing session_id=%s', session_id)
 
-    last_result: dict[str, Any] | None = None
     try:
-      last_result = await self._drain_session(state)
+      async for item in self._drain_session(state):
+        yield item
     finally:
       async with lock:
         state.is_processing = False
+      logger.info('runtime leave processing session_id=%s', session_id)
 
-    return {
-        'session_id': session_id,
-        'processed': last_result is not None,
-        'result': last_result,
-        'state': self._build_state_view(state),
-    }
-
-  async def _drain_session(self, state: StreamingSessionState) -> dict[str, Any] | None:
-    """串行 drain：只要有 pending update 就继续处理。
-
-    为什么需要这样做：
-    - 模型调用可能慢，前端会不断提交更长累计文本。
-    - drain 每轮都读取“当下最新 raw_text”，确保下一轮看到的是最新快照。
-    """
-
-    last_result: dict[str, Any] | None = None
+  async def _drain_session(self, state: StreamingSessionState) -> AsyncIterator[dict[str, Any]]:
     lock = self._get_session_lock(state.session_id)
 
     while True:
@@ -132,33 +120,75 @@ class StreamingRuntime:
           extraction=extraction,
           previous_snapshot=previous_snapshot,
       ):
+        logger.info(
+            'runtime skip trigger session_id=%s is_stream_end=%s changes=%s',
+            state.session_id,
+            current_is_stream_end,
+            extraction.changes,
+        )
+        yield {
+            'type': 'status',
+            'session_id': state.session_id,
+            'processed': False,
+            'reason': 'not_triggered',
+            'final': current_is_stream_end,
+        }
         continue
 
+      segment_id = f'seg_{state.next_segment_index:04d}'
+      logger.info('runtime trigger segment session_id=%s segment_id=%s', state.session_id, segment_id)
+
       payload = {
-          'segment_id': f'seg_{state.next_segment_index:04d}',
+          'segment_id': segment_id,
           'visible_snapshot': extraction.visible_snapshot,
           'changes': extraction.changes,
           'binding_state_summary': state.binding_state_summary,
           'page_state_summary': state.page_state_summary,
       }
 
-      result = await self._prompt_service.project_segment(payload)
+      final_item: dict[str, Any] | None = None
+      async for item in self._prompt_service.stream_project_segment(payload):
+        item_type = item.get('type')
+        if item_type == 'frame':
+          yield {
+              'type': 'frame',
+              'session_id': state.session_id,
+              'segment_id': segment_id,
+              'frame': item.get('frame'),
+          }
+          continue
+        if item_type == 'final':
+          final_item = item
+
+      if final_item is None:
+        logger.warning('runtime missing final item session_id=%s segment_id=%s', state.session_id, segment_id)
+        continue
 
       async with lock:
         state.last_visible_snapshot = extraction.visible_snapshot
-        state.binding_state_summary = result.get('binding_state_summary', state.binding_state_summary)
-        state.page_state_summary = result.get('page_state_summary', state.page_state_summary)
+        state.binding_state_summary = final_item.get('binding_state_summary', state.binding_state_summary)
+        state.page_state_summary = final_item.get('page_state_summary', state.page_state_summary)
 
-        has_frames = bool(result.get('frames'))
-        has_events = bool(result.get('events'))
-        if has_frames or has_events:
+        events = final_item.get('events') or []
+        if events:
           state.first_render_done = True
 
         state.next_segment_index += 1
 
-      last_result = result
-
-    return last_result
+      logger.info(
+          'runtime commit state session_id=%s segment_id=%s event_count=%s next_segment_index=%s',
+          state.session_id,
+          segment_id,
+          len(final_item.get('events') or []),
+          state.next_segment_index,
+      )
+      yield {
+          'type': 'final',
+          'session_id': state.session_id,
+          'segment_id': segment_id,
+          'processed': True,
+          'final': current_is_stream_end,
+      }
 
   def _should_trigger_processing(
       self,
@@ -167,8 +197,6 @@ class StreamingRuntime:
       extraction: JsonExtractionResult,
       previous_snapshot: dict[str, Any],
   ) -> bool:
-    """统一触发入口：先过滤无意义变化，再按首屏/增量规则判断。"""
-
     if not self._has_meaningful_changes(
         extraction=extraction,
         previous_snapshot=previous_snapshot,
@@ -181,12 +209,6 @@ class StreamingRuntime:
     return self._should_trigger_incremental_render(extraction=extraction)
 
   def _should_trigger_first_render(self, *, extraction: JsonExtractionResult) -> bool:
-    """首屏触发规则。
-
-    - 任一数组路径新增完整元素数 >= 2 时触发。
-    - 或流结束且当前 snapshot 非空时触发收尾。
-    """
-
     if self._has_array_growth(extraction.changes, threshold=2):
       return True
 
@@ -197,12 +219,6 @@ class StreamingRuntime:
     return False
 
   def _should_trigger_incremental_render(self, *, extraction: JsonExtractionResult) -> bool:
-    """首屏后增量触发规则。
-
-    - 任一数组路径新增完整元素数 >= 2 时触发。
-    - 或流结束且本轮 changes 非空时触发收尾。
-    """
-
     if self._has_array_growth(extraction.changes, threshold=2):
       return True
 
@@ -218,19 +234,10 @@ class StreamingRuntime:
       extraction: JsonExtractionResult,
       previous_snapshot: dict[str, Any],
   ) -> bool:
-    """过滤“可见快照未变化 + 无增量 + 未结束”的空轮次。"""
-
     snapshot_changed = extraction.visible_snapshot != (previous_snapshot or {})
     has_changes_delta = self._changes_has_delta(extraction.changes)
     is_stream_end = bool(extraction.changes.get('is_stream_end'))
-
-    if snapshot_changed:
-      return True
-    if has_changes_delta:
-      return True
-    if is_stream_end:
-      return True
-    return False
+    return bool(snapshot_changed or has_changes_delta or is_stream_end)
 
   def _changes_has_delta(self, changes: dict[str, Any]) -> bool:
     new_paths = changes.get('new_paths') or []
@@ -254,13 +261,3 @@ class StreamingRuntime:
       lock = asyncio.Lock()
       self._session_locks[session_id] = lock
     return lock
-
-  def _build_state_view(self, state: StreamingSessionState) -> dict[str, Any]:
-    return {
-        'first_render_done': state.first_render_done,
-        'is_processing': state.is_processing,
-        'has_pending_update': state.has_pending_update,
-        'is_stream_end': state.is_stream_end,
-        'next_segment_index': state.next_segment_index,
-        'last_visible_snapshot': state.last_visible_snapshot,
-    }
