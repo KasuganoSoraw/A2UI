@@ -136,14 +136,14 @@ class StreamingPromptService:
   def __init__(
       self,
       llm_caller: LLMCaller | None = None,
-      stream_compiler: StreamCompiler | None = None,
   ) -> None:
     self._llm_caller = llm_caller or self._default_llm_caller
-    self._stream_compiler = stream_compiler or StreamCompiler()
 
   async def stream_project_segment(
       self,
       payload: StreamingProjectionInput | dict[str, Any],
+      *,
+      stream_compiler: StreamCompiler,
   ) -> AsyncIterator[dict[str, Any]]:
     """流式两阶段入口：第一阶段一次性，第二阶段边收边编译边产出。
 
@@ -202,7 +202,7 @@ class StreamingPromptService:
       parsed_events = parser.feed(chunk_text)
       for event in parsed_events:
         events.append(event)
-        event_frames = self._stream_compiler.apply(event)
+        event_frames = stream_compiler.apply(event)
         logger.info(
             'event apply result event=%s frame_count=%s',
             event.model_dump(exclude_none=True),
@@ -215,7 +215,7 @@ class StreamingPromptService:
     tail_events = parser.finish()
     for event in tail_events:
       events.append(event)
-      event_frames = self._stream_compiler.apply(event)
+      event_frames = stream_compiler.apply(event)
       logger.info(
           'event apply result event=%s frame_count=%s',
           event.model_dump(exclude_none=True),

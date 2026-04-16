@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 
 from streaming.json_extractor import JsonExtractionResult, JsonExtractor
 from streaming.service import StreamingPromptService
+from streaming.stream_compiler import StreamCompiler
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ class StreamingRuntime:
     self._prompt_service = prompt_service or StreamingPromptService()
     self._sessions: dict[str, StreamingSessionState] = {}
     self._session_locks: dict[str, asyncio.Lock] = {}
+    self._session_compilers: dict[str, StreamCompiler] = {}
 
   async def stream_submit_snapshot(
       self,
@@ -145,9 +147,18 @@ class StreamingRuntime:
           'binding_state_summary': state.binding_state_summary,
           'page_state_summary': state.page_state_summary,
       }
+      session_compiler = self._get_or_create_session_compiler(state.session_id)
+      logger.info(
+          'runtime use session compiler session_id=%s segment_id=%s',
+          state.session_id,
+          segment_id,
+      )
 
       final_item: dict[str, Any] | None = None
-      async for item in self._prompt_service.stream_project_segment(payload):
+      async for item in self._prompt_service.stream_project_segment(
+          payload,
+          stream_compiler=session_compiler,
+      ):
         item_type = item.get('type')
         if item_type == 'frame':
           yield {
@@ -261,3 +272,11 @@ class StreamingRuntime:
       lock = asyncio.Lock()
       self._session_locks[session_id] = lock
     return lock
+
+  def _get_or_create_session_compiler(self, session_id: str) -> StreamCompiler:
+    compiler = self._session_compilers.get(session_id)
+    if compiler is None:
+      compiler = StreamCompiler()
+      self._session_compilers[session_id] = compiler
+      logger.info('runtime create session compiler session_id=%s', session_id)
+    return compiler
