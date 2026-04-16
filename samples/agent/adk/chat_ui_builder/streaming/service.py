@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import Any, Literal
 
 from litellm import acompletion
@@ -80,6 +80,57 @@ class StreamingProjectionInput(BaseModel):
 LLMCaller = Callable[[list[dict[str, str]]], Any]
 
 
+class StreamEventLineParser:
+  """第二阶段 NDJSON 行解析器。
+
+  说明：
+  - 第二阶段改为 stream=True 后，模型文本会按 chunk 到达。
+  - 这里用 buffer 拼接并按换行切分，确保支持“半行跨 chunk”。
+  """
+
+  def __init__(self) -> None:
+    self._buffer = ''
+
+  def feed(self, chunk_text: str) -> list[StreamEvent]:
+    if not chunk_text:
+      return []
+
+    self._buffer += chunk_text
+    events: list[StreamEvent] = []
+    while '\n' in self._buffer:
+      raw_line, self._buffer = self._buffer.split('\n', 1)
+      parsed = self._parse_line(raw_line)
+      if parsed is not None:
+        events.append(parsed)
+    return events
+
+  def finish(self) -> list[StreamEvent]:
+    if not self._buffer.strip():
+      self._buffer = ''
+      return []
+    raw_line = self._buffer
+    self._buffer = ''
+    parsed = self._parse_line(raw_line)
+    return [parsed] if parsed is not None else []
+
+  def _parse_line(self, raw_line: str) -> StreamEvent | None:
+    line = raw_line.strip()
+    if not line:
+      return None
+
+    try:
+      payload = json.loads(line)
+    except json.JSONDecodeError as exc:
+      logger.warning('event stage skip invalid NDJSON line: %s line=%s', exc, line)
+      return None
+
+    try:
+      return STREAM_EVENT_ADAPTER.validate_python(payload)
+    except Exception as exc:  # noqa: BLE001
+      logger.warning('event stage skip invalid stream event: %s payload=%s', exc, payload)
+      return None
+
+
 class StreamingPromptService:
   """两阶段 streaming prompt 串联服务（最小实现）。"""
 
@@ -94,6 +145,49 @@ class StreamingPromptService:
   async def project_segment(self, payload: StreamingProjectionInput | dict[str, Any]) -> dict[str, Any]:
     """执行一轮两阶段投影，返回 decisions/events/frames 与最新 binding_state_summary。"""
 
+    frames: list[A2UIFrame] = []
+    final_item: dict[str, Any] | None = None
+    async for item in self.stream_project_segment(payload):
+      item_type = item.get('type')
+      if item_type == 'frame':
+        frame = item.get('frame')
+        if isinstance(frame, A2UIFrame):
+          frames.append(frame)
+      elif item_type == 'final':
+        final_item = item
+
+    if final_item is None:
+      input_payload = payload if isinstance(payload, StreamingProjectionInput) else StreamingProjectionInput.model_validate(payload)
+      return {
+          'segment_id': input_payload.segment_id,
+          'accepted_decisions': [],
+          'events': [],
+          'frames': [],
+          'binding_state_summary': input_payload.binding_state_summary.model_dump(),
+          'page_state_summary': input_payload.page_state_summary.model_dump(),
+      }
+
+    return {
+        'segment_id': final_item.get('segment_id'),
+        'accepted_decisions': final_item.get('accepted_decisions', []),
+        'events': final_item.get('events', []),
+        'frames': frames,
+        'binding_state_summary': final_item.get('binding_state_summary', {}),
+        'page_state_summary': final_item.get('page_state_summary', {}),
+    }
+
+  async def stream_project_segment(
+      self,
+      payload: StreamingProjectionInput | dict[str, Any],
+  ) -> AsyncIterator[dict[str, Any]]:
+    """流式两阶段入口：第一阶段一次性，第二阶段边收边编译边产出。
+
+    设计说明：
+    - 第一阶段保持一次性调用，便于稳定拿到 binding decisions。
+    - 第二阶段改为 stream=True，模仿非流式 service 的 chunk->parser->compiler 模式。
+    - page_state_summary 暂按稳妥策略，在第二阶段结束后统一按 events 回写。
+    """
+
     projection_input = payload if isinstance(payload, StreamingProjectionInput) else StreamingProjectionInput.model_validate(payload)
 
     binding_payload = {
@@ -103,14 +197,22 @@ class StreamingPromptService:
         'binding_state_summary': projection_input.binding_state_summary.model_dump(),
         'page_state_summary': projection_input.page_state_summary.model_dump(),
     }
+    logger.info('binding stage input payload=%s', json.dumps(binding_payload, ensure_ascii=False))
 
     binding_messages = build_binding_messages(binding_payload)
     binding_raw = await self._llm_caller(binding_messages)
+    logger.info('binding stage raw output=%s', binding_raw)
+
     binding_result = self._parse_binding_result(binding_raw, projection_input.segment_id)
+    logger.info('binding stage parsed result=%s', binding_result.model_dump())
 
     accepted_decisions = self._filter_and_apply_decisions(
         decisions=binding_result.decisions,
         binding_state=projection_input.binding_state_summary,
+    )
+    logger.info(
+        'binding stage accepted_decisions=%s',
+        [decision.model_dump(exclude_none=True) for decision in accepted_decisions],
     )
 
     event_payload = {
@@ -124,24 +226,60 @@ class StreamingPromptService:
         'binding_state_summary': projection_input.binding_state_summary.model_dump(),
         'page_state_summary': projection_input.page_state_summary.model_dump(),
     }
+    logger.info('event stage input payload=%s', json.dumps(event_payload, ensure_ascii=False))
 
+    events: list[StreamEvent] = []
+    frame_count = 0
+    parser = StreamEventLineParser()
     event_messages = build_stream_event_messages(event_payload)
-    event_raw = await self._llm_caller(event_messages)
-    events = self._parse_stream_events(event_raw)
 
-    frames: list[A2UIFrame] = []
-    for event in events:
-      frames.extend(self._stream_compiler.apply(event))
+    async for chunk_text in self._stream_event_chunks(event_messages):
+      logger.info('event stage chunk=%s', chunk_text)
+      parsed_events = parser.feed(chunk_text)
+      logger.info('event stage parsed_events_count=%s', len(parsed_events))
+      for event in parsed_events:
+        events.append(event)
+        event_frames = self._stream_compiler.apply(event)
+        logger.info(
+            'event apply result event=%s frame_count=%s',
+            event.model_dump(exclude_none=True),
+            len(event_frames),
+        )
+        for frame in event_frames:
+          frame_count += 1
+          yield {'type': 'frame', 'frame': frame}
+
+    tail_events = parser.finish()
+    logger.info('event stage finish parsed_events_count=%s', len(tail_events))
+    for event in tail_events:
+      events.append(event)
+      event_frames = self._stream_compiler.apply(event)
+      logger.info(
+          'event apply result event=%s frame_count=%s',
+          event.model_dump(exclude_none=True),
+          len(event_frames),
+      )
+      for frame in event_frames:
+        frame_count += 1
+        yield {'type': 'frame', 'frame': frame}
+
+    # page_state_summary 先保持“阶段结束后统一更新”的稳妥策略，减少状态漂移风险。
     self._apply_events_to_page_state(
         events=events,
         page_state=projection_input.page_state_summary,
     )
+    logger.info(
+        'event stage final summary total_events=%s total_frames=%s page_state_summary=%s',
+        len(events),
+        frame_count,
+        projection_input.page_state_summary.model_dump(),
+    )
 
-    return {
+    yield {
+        'type': 'final',
         'segment_id': projection_input.segment_id,
         'accepted_decisions': [decision.model_dump() for decision in accepted_decisions],
         'events': [event.model_dump(exclude_none=True) for event in events],
-        'frames': frames,
         'binding_state_summary': projection_input.binding_state_summary.model_dump(),
         'page_state_summary': projection_input.page_state_summary.model_dump(),
     }
@@ -169,6 +307,52 @@ class StreamingPromptService:
     message = response.choices[0].message if response.choices else None
     content = getattr(message, 'content', '') if message else ''
     return content or ''
+
+  async def _stream_event_chunks(self, messages: list[dict[str, str]]) -> AsyncIterator[str]:
+    """第二阶段默认流式调用，只向上游产出文本 chunk。"""
+
+    response = await acompletion(
+        model=settings.litellm_model,
+        messages=messages,
+        api_base=settings.openai_api_base,
+        api_key=settings.openai_api_key,
+        stream=True,
+        temperature=settings.temperature,
+        extra_body={
+            'chat_template_kwargs': {
+                'enable_thinking': False,
+            }
+        },
+    )
+
+    async for chunk in response:
+      content = self._extract_chunk_content(chunk)
+      if content:
+        yield content
+
+  def _extract_chunk_content(self, chunk: Any) -> str:
+    choices = getattr(chunk, 'choices', None) or []
+    if not choices:
+      return ''
+    delta = getattr(choices[0], 'delta', None)
+    if delta is None:
+      return ''
+
+    content = getattr(delta, 'content', '')
+    if isinstance(content, str):
+      return content
+    if isinstance(content, list):
+      texts: list[str] = []
+      for part in content:
+        if isinstance(part, str):
+          texts.append(part)
+          continue
+        if isinstance(part, dict):
+          text_value = part.get('text')
+          if isinstance(text_value, str):
+            texts.append(text_value)
+      return ''.join(texts)
+    return ''
 
   def _parse_binding_result(self, raw_text: str, segment_id: str) -> BindingResult:
     """解析第一阶段 JSON 输出，并做最小兜底。"""
@@ -212,8 +396,10 @@ class StreamingPromptService:
 
     for decision in decisions:
       if decision.target_block_type not in _ALLOWED_BLOCK_TYPES:
+        logger.info('binding decision rejected: invalid block_type decision=%s', decision.model_dump())
         continue
       if not decision.dataset_id or not decision.target_block_id or not decision.evidence_paths:
+        logger.info('binding decision rejected: missing required fields decision=%s', decision.model_dump())
         continue
 
       pair = (decision.dataset_id, decision.target_block_id)
@@ -239,6 +425,8 @@ class StreamingPromptService:
       # append 决策不新增 binding，但必须命中历史绑定。
       if pair in existing_pairs:
         accepted.append(decision)
+      else:
+        logger.info('binding decision rejected: append target not found decision=%s', decision.model_dump())
 
     return accepted
 

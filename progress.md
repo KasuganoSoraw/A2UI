@@ -41,3 +41,4 @@
 - 2026-04-16 任务：在 app.py 新增 /api/chat/ws/stream 最小 WebSocket 薄接口；接入共享 StreamingRuntime，按 sendMessage(message/final) 调 submit_snapshot，并向前端返回 frames/状态与最小错误协议；补充对应设计文档与开发计划。
 - 2026-04-16 任务：定向修复 /api/chat/ws/stream 的 session_id 策略；改为优先沿用 query 参数、缺失时在建连阶段自动生成连接级固定 session_id，并新增轻量 streaming_connected ack，保持既有 submit_snapshot 与 frames 回传主链不变。
 - 2026-04-16 任务：定向修复 /api/chat/ws/stream 的 frames 序列化错误；发送 a2ui_frames 前将 A2UIFrame 列表转换为 JSON 可序列化 dict 列表（model_dump），保持既有协议形状与主流程不变。
+- 2026-04-16 任务：在 streaming/service.py 原地演进两阶段服务；新增 stream_project_segment 流式入口与 NDJSON chunk 行解析器，实现第二阶段 stream=True 下“边收chunk边解析event边编译frame边yield”，补齐第一/二阶段输入输出与过滤原因日志，保留 project_segment 兼容入口并在阶段结束后统一更新 page_state_summary。
