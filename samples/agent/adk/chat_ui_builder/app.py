@@ -88,11 +88,10 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
   """
 
   await websocket.accept()
-  session_id = websocket.query_params.get('session_id')
-  if not session_id:
-    await websocket.send_json({'type': 'error', 'error': 'missing session_id'})
-    await websocket.close()
-    return
+  # 后端必须有 session_id（runtime 需要按 session 维护状态），
+  # 但不强制前端必须传：若 query 未提供，则在“本次连接建立时”生成并固定复用。
+  session_id = websocket.query_params.get('session_id') or f'ws_{uuid4().hex}'
+  await websocket.send_json({'type': 'streaming_connected', 'session_id': session_id})
 
   try:
     while True:
