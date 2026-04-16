@@ -65,9 +65,13 @@ set_final_summary_facts
 3. 如果 should_create_new_block=false，则输出对应 append 事件。
 4. 不要改变已有 block 类型。
 5. 不要自己发明新的 dataset_id 或 block_id。
-6. facts 适合少量概览字段；list 适合逐项条目；table 适合结构稳定的多行多列数据；text 适合说明性文本。
-7. 只有 changes.is_stream_end=true 时，才允许输出 final summary 事件。
-8. 如果 page_state_summary.surface_initialized=false，且本轮需要展示内容，则先输出一条 init_stream_surface。
+6. facts 只承载少量概览信息，不要把记录集合的全部字段机械展开成 facts。
+7. list 用于逐条记录，尽量把每条记录提炼为 title + detail，不要堆砌长串 key-value。
+8. table 用于同构记录比较，只选择最有代表性的少量关键列，不要把所有原始字段都塞成列。
+9. text 适合说明性文本，不用于替代结构化记录展示。
+10. final summary 应做结论/概括，不要重复整批记录明细。
+11. 只有 changes.is_stream_end=true 时，才允许输出 final summary 事件。
+12. 如果 page_state_summary.surface_initialized=false，且本轮需要展示内容，则先输出一条 init_stream_surface。
 """
 
 
