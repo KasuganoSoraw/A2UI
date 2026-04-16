@@ -129,11 +129,11 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
         if item_type == 'frame':
           frame = item.get('frame')
           serializable_frame = frame.model_dump(exclude_none=True) if hasattr(frame, 'model_dump') else frame
+          # 单帧消息只表达“有一帧数据”，不承担轮次结束/整流结束语义，因此不携带 final。
           await websocket.send_json(
               {
                   'type': 'a2ui_frame',
                   'session_id': session_id,
-                  'final': is_final,
                   'frame': serializable_frame,
               }
           )
@@ -141,14 +141,23 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
           continue
 
         if item_type == 'final':
+          # runtime 的 final 表达“当前轮次处理完成”，协议上用 round_complete 明确语义。
           await websocket.send_json(
               {
-                  'type': 'streaming_final',
+                  'type': 'streaming_round_complete',
                   'session_id': session_id,
-                  'final': is_final,
               }
           )
-          logger.info('WS /api/chat/ws/stream sent final session_id=%s', session_id)
+          logger.info('WS /api/chat/ws/stream sent round_complete session_id=%s', session_id)
+          # 只有前端本次输入 final=true 时，才补发 complete，表示整条流真正结束。
+          if is_final:
+            await websocket.send_json(
+                {
+                    'type': 'complete',
+                    'session_id': session_id,
+                }
+            )
+            logger.info('WS /api/chat/ws/stream sent complete session_id=%s', session_id)
           continue
 
         if item_type == 'status':
@@ -157,7 +166,6 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
                   'type': 'streaming_status',
                   'session_id': session_id,
                   'processed': False,
-                  'final': is_final,
               }
           )
           logger.info(

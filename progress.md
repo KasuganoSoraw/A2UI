@@ -44,3 +44,4 @@
 - 2026-04-16 任务：在 streaming/service.py 原地演进两阶段服务；新增 stream_project_segment 流式入口与 NDJSON chunk 行解析器，实现第二阶段 stream=True 下“边收chunk边解析event边编译frame边yield”，补齐第一/二阶段输入输出与过滤原因日志，保留 project_segment 兼容入口并在阶段结束后统一更新 page_state_summary。
 - 2026-04-16 任务：执行 streaming 端到端渐进式收敛重构；service 删除非渐进式入口与整轮事件解析，runtime 改为 stream_submit_snapshot 流式调度并逐帧透传，app/ws 改为 a2ui_frame 单帧发送与 streaming_final 收尾，清理无意义 chunk/空解析日志并补充关键链路日志。
 - 2026-04-16 任务：定向修复 StreamCompiler 全局复用导致的 session 污染；service 改为由调用方显式传入 stream_compiler，runtime 新增 session_compilers 容器并按 session 创建/复用 compiler 后再调用 service，确保同 session 跨轮复用且不同 session 隔离。
+- 2026-04-16 任务：定向收敛 /api/chat/ws/stream 协议结束语义；a2ui_frame 去除 final，streaming_final 更名为 streaming_round_complete，并在本轮完成且请求 final=true 时额外发送 complete；streaming_status 同步去除 final 字段。
