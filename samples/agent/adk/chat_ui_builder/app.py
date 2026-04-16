@@ -140,13 +140,17 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
 
       projection_result = runtime_result.get('result') or {}
       frames = projection_result.get('frames') or []
+      serializable_frames = [
+          frame.model_dump(exclude_none=True) if hasattr(frame, 'model_dump') else frame
+          for frame in frames
+      ]
       await websocket.send_json(
           {
               'type': 'a2ui_frames',
               'session_id': session_id,
               'processed': True,
               'final': is_final,
-              'frames': frames,
+              'frames': serializable_frames,
           }
       )
   except WebSocketDisconnect:
