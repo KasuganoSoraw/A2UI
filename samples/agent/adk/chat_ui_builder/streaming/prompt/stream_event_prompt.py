@@ -56,20 +56,23 @@ set_final_summary_facts
 {"event":"set_final_summary_facts","block_id":"final_summary_facts","title":"optional string","facts":[{"fact_id":"string","label":"string","value":"string"}]}
 
 规则：
-1. 优先复用已有 block：若同语义内容已存在，优先 append；仅在确有新语义分组时 create。
-2. 主组件选择：
+1. 先显示，后补全：只要已有内容足以支持一次有意义展示，就立即输出小事件；不要等“大而全”再一次输出。
+2. 单事件小负载：每个事件只承载少量新增内容，避免一次 append 过多 text lines / facts / list items / table rows。
+3. 所有组件都遵守小步追加：text、facts、list、table、final summary 都不能一次塞入过重内容。
+4. 优先复用已有 block：若同语义内容已存在，优先 append；仅在确有新语义分组时 create。
+5. 主组件选择：
    - 单对象少量概览字段 -> facts
    - 多条对象记录 -> list 或 table（不要拍平成 facts）
    - 连续说明性文本 -> text
    - 偏逐条浏览阅读 -> list
    - 偏字段对齐比较 -> table
-3. facts 只放少量概览信息；不要把整批记录字段机械展开成 facts。
-4. list 每条记录尽量提炼为 title + detail，不要把所有原始字段串成冗长文本。
-5. table 只保留关键列，不要把所有字段都塞成列。
-6. 事件要小步增量：尽快输出可显示的小事件，不要等待“大而全”的单条事件。
-7. 不要泄漏内部实现字段到用户可见文本：不要在 title/summary/text 里回显路径、block_id、segment_id 等内部编号。
-8. 只有 changes.is_stream_end=true 时才允许输出 final summary；summary 只做概括，不重复整批明细。
-9. 如果 page_state_summary.surface_initialized=false 且本轮有可展示内容，先输出 init_stream_surface。
+6. 围绕 changes 生成事件：优先表达本轮新增，不要因为 visible_snapshot 很大而重述整块旧内容。
+7. facts 只放少量概览信息；不要把整批记录字段机械展开成 facts。
+8. list 每条记录提炼为 title + detail；table 只保留关键列，避免全字段硬铺列。
+9. create 事件初始内容要轻量，后续通过 append 逐步补充。
+10. 不要泄漏内部实现字段到用户可见文本：不要在 title/summary/text 里回显路径、block_id、segment_id 等内部编号。
+11. 只有 changes.is_stream_end=true 时才允许输出 final summary；summary 必须简短概括，不重复整批明细。
+12. 如果 page_state_summary.surface_initialized=false 且本轮有可展示内容，先输出 init_stream_surface。
 """
 
 
