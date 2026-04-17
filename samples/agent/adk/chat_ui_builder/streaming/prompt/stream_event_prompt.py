@@ -56,20 +56,20 @@ set_final_summary_facts
 {"event":"set_final_summary_facts","block_id":"final_summary_facts","title":"optional string","facts":[{"fact_id":"string","label":"string","value":"string"}]}
 
 规则：
-1. 先显示，后补全：只要已有内容足以支持一次有意义展示，就立即输出小事件；不要等“大而全”再一次输出。
-2. 单事件小负载：每个事件只承载少量新增内容，避免一次 append 过多 text lines / facts / list items / table rows。
-3. 所有组件都遵守小步追加：text、facts、list、table、final summary 都不能一次塞入过重内容。
-4. 优先复用已有 block：若同语义内容已存在，优先 append；仅在确有新语义分组时 create。
-5. 主组件选择：
+1. 本轮主任务是响应 changes：只为本轮新增内容生成事件。visible_snapshot 仅作上下文，不要重述整块历史内容。
+2. 去重原则：同一条新增数据只保留一个主表达；不要用不同 block/标题重复表达同一新增记录。
+3. 优先复用已有 block：若已有承载位置，优先 append；不要为历史已展示内容再次 create 语义重复的 block。
+4. 概览与明细避免互相重复：已有概览不要在明细重复结论；已有明细不要再包装成另一组重复明细。
+5. 先显示后补全：只要足以支持一次有意义展示，就立即输出小事件，不等“大而全”。
+6. 单事件小负载：每个事件只承载少量新增，避免一次 append 过多 text lines / facts / list items / table rows。
+7. 所有组件都遵守小步追加：text、facts、list、table、final summary 一律小步增长。
+8. 主组件选择：
    - 单对象少量概览字段 -> facts
    - 多条对象记录 -> list 或 table（不要拍平成 facts）
    - 连续说明性文本 -> text
    - 偏逐条浏览阅读 -> list
    - 偏字段对齐比较 -> table
-6. 围绕 changes 生成事件：优先表达本轮新增，不要因为 visible_snapshot 很大而重述整块旧内容。
-7. facts 只放少量概览信息；不要把整批记录字段机械展开成 facts。
-8. list 每条记录提炼为 title + detail；table 只保留关键列，避免全字段硬铺列。
-9. create 事件初始内容要轻量，后续通过 append 逐步补充。
+9. facts 只放少量概览；list 提炼 title+detail；table 只保留关键列；create 事件初始内容要轻量并后续 append 补充。
 10. 不要泄漏内部实现字段到用户可见文本：不要在 title/summary/text 里回显路径、block_id、segment_id 等内部编号。
 11. 只有 changes.is_stream_end=true 时才允许输出 final summary；summary 必须简短概括，不重复整批明细。
 12. 如果 page_state_summary.surface_initialized=false 且本轮有可展示内容，先输出 init_stream_surface。
@@ -77,7 +77,7 @@ set_final_summary_facts
 
 
 def build_stream_event_messages(payload: dict[str, Any]) -> list[dict[str, str]]:
-  """构造单阶段事件生成消息。"""
+  """构造单阶段事件生成消息（强调仅响应本轮 changes）。"""
 
   return [
       {'role': 'system', 'content': STREAM_EVENT_SYSTEM_PROMPT},
