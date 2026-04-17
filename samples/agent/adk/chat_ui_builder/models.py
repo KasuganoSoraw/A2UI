@@ -241,6 +241,12 @@ class AddTableDelta(BaseModel):
   spec_json: str
 
 
+class UpdateTableSpecDelta(BaseModel):
+  event: Literal["update_table_spec"]
+  id: str
+  spec_json: str
+
+
 class AddLineChartDelta(BaseModel):
   event: Literal["add_line_chart"]
   id: str
@@ -335,6 +341,7 @@ Delta = Annotated[
     | AddImageDelta
     | AddButtonDelta
     | AddTableDelta
+    | UpdateTableSpecDelta
     | AddLineChartDelta
     | AddPieChartDelta
     | AddMermaidDelta

@@ -18,6 +18,7 @@ from models import (
     AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
+    UpdateTableSpecDelta,
     AppendListItemDelta,
     ComponentNode,
     DataMapEntry,
@@ -68,6 +69,8 @@ class FrameCompiler:
       return self._add_divider(delta)
     if isinstance(delta, AddTableDelta):
       return self._add_table(delta)
+    if isinstance(delta, UpdateTableSpecDelta):
+      return self._update_table_spec(delta)
     if isinstance(delta, AddLineChartDelta):
       return self._add_line_chart(delta)
     if isinstance(delta, AddPieChartDelta):
@@ -481,6 +484,17 @@ class FrameCompiler:
     )
     return prefix_frames + [
         self._surface_update([parent_update, table_component]),
+        self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _update_table_spec(self, delta: UpdateTableSpecDelta) -> list[A2UIFrame]:
+    # 该路径只做“更新已有 table 的数据模型”，不创建新组件、不改父容器 children。
+    # streaming append_table_rows 若继续复用 AddTableDelta 会触发 _register_id + _append_child，
+    # 导致页面上出现重复 table。这里补一个最小能力专门做数据刷新。
+    table_id = self.aliases.get(delta.id, delta.id)
+    if table_id not in self.used_ids:
+      raise ValueError(f'Unknown table id for update_table_spec: {delta.id}')
+    return [
         self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 

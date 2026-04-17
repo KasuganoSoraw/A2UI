@@ -31,3 +31,21 @@
 - 2026-04-09 任务：完成 region_archetypes 可读性重构；弱化模板抽象，改为各 role 显式创建 section 与显式 slot_parents，保留外部接口与布局行为等价。
 - 2026-04-14 任务：同步本地代码到远程分支 codex/remove-intentplan-and-legacy-fallback-logic-dxojnz 基线；按要求定点修改 app.py 的 CORS allow_origins、收敛 prompting init_plan.layout_hint 到 auto|single_column，并新增“文字与条目可附加emoji”约束；models.AddRegionTextDelta 已一致无需改动。
 - 2026-04-14 任务：新增后端 /ws/debug WebSocket 调试接口（仅 app.py 最小改动）；实现连接日志、connected 确认消息、receive_text 循环消息日志、断开与异常日志，用于前端联调通路验证。
+- 2026-04-14 任务：新增 streaming 独立骨架基座；在 chat_ui_builder/streaming 下落地 stream event 模型与 StreamCompiler（block-first/dataset-first/append-only），复用 FrameCompiler 编译 text/facts/list/table/final summary，并采用 table rows 缓存+全量 spec 刷新策略完成 append_table_rows 最小可用实现。
+- 2026-04-14 任务：完成 streaming 定向修正；新增 update_table_spec low-level delta 以支持同表数据刷新（避免 append_table_rows 重复创建 table），修复 text block 追加编号递增、list block 外层+list_host 结构，以及 init_stream_surface 默认 summary 去过程化。
+- 2026-04-15 任务：新增 streaming 两阶段 prompt 与最小 service 串联；落地 binding_prompt/stream_event_prompt（短提示词），新增 StreamingPromptService 完成“第一阶段判别->accepted decisions 更新 binding_state_summary->第二阶段事件生成->StreamCompiler 编译 frames”闭环。
+- 2026-04-15 任务：完成 streaming 两阶段定向修正；在 service 中新增 page_state_summary 闭环更新（surface_initialized + blocks 去重回灌）并随返回结果输出，同时精修 binding prompt 对 dataset=语义分组 的短说明，稳定“沿用/新建 dataset”判断。
+- 2026-04-15 任务：新增 streaming/json_extractor 工程层提取器；实现断裂累计 JSON 的保守可见快照提取（支持数组前缀元素可见），并基于上一轮 snapshot 计算 changes（new_paths/new_array_items/is_stream_end），用于第一阶段 prompt 输入准备。
+- 2026-04-15 任务：修复 streaming/json_extractor 对部分可见子容器的保留逻辑；对象字段 value 未闭合但为非空 dict/list 时保留已可见部分，修复 case2/case3 失败；并将数组计数合并改为 max 防止嵌套路径后写覆盖。
+- 2026-04-15 任务：新增 streaming/runtime.py 作为 session 级串行调度层；实现 latest_raw_text 覆盖策略、同 session 强串行 drain、首屏/增量触发规则与 service 串联，并补充对应设计文档与开发计划。
+- 2026-04-16 任务：在 app.py 新增 /api/chat/ws/stream 最小 WebSocket 薄接口；接入共享 StreamingRuntime，按 sendMessage(message/final) 调 submit_snapshot，并向前端返回 frames/状态与最小错误协议；补充对应设计文档与开发计划。
+- 2026-04-16 任务：定向修复 /api/chat/ws/stream 的 session_id 策略；改为优先沿用 query 参数、缺失时在建连阶段自动生成连接级固定 session_id，并新增轻量 streaming_connected ack，保持既有 submit_snapshot 与 frames 回传主链不变。
+- 2026-04-16 任务：定向修复 /api/chat/ws/stream 的 frames 序列化错误；发送 a2ui_frames 前将 A2UIFrame 列表转换为 JSON 可序列化 dict 列表（model_dump），保持既有协议形状与主流程不变。
+- 2026-04-16 任务：在 streaming/service.py 原地演进两阶段服务；新增 stream_project_segment 流式入口与 NDJSON chunk 行解析器，实现第二阶段 stream=True 下“边收chunk边解析event边编译frame边yield”，补齐第一/二阶段输入输出与过滤原因日志，保留 project_segment 兼容入口并在阶段结束后统一更新 page_state_summary。
+- 2026-04-16 任务：执行 streaming 端到端渐进式收敛重构；service 删除非渐进式入口与整轮事件解析，runtime 改为 stream_submit_snapshot 流式调度并逐帧透传，app/ws 改为 a2ui_frame 单帧发送与 streaming_final 收尾，清理无意义 chunk/空解析日志并补充关键链路日志。
+- 2026-04-16 任务：定向修复 StreamCompiler 全局复用导致的 session 污染；service 改为由调用方显式传入 stream_compiler，runtime 新增 session_compilers 容器并按 session 创建/复用 compiler 后再调用 service，确保同 session 跨轮复用且不同 session 隔离。
+- 2026-04-16 任务：定向收敛 /api/chat/ws/stream 协议结束语义；a2ui_frame 去除 final，streaming_final 更名为 streaming_round_complete，并在本轮完成且请求 final=true 时额外发送 complete；streaming_status 同步去除 final 字段。
+- 2026-04-16 任务：定向优化 streaming 两阶段 prompt 的主组件选择；第一阶段收紧 facts 并强化“多条对象记录优先 list/table”的泛化规则，第二阶段新增 facts/list/table 展开约束与 summary 去明细重复约束，避免记录型数组被拍平成 facts。
+- 2026-04-17 任务：将 streaming 链路从两阶段 LLM 收敛为单阶段 LLM 直接输出 StreamEvent；删除 binding_prompt 与 binding decision 解析筛选代码，service 改为单阶段输入->流式事件解析->逐帧编译输出，并在阶段结束后统一更新 binding/page state。
+- 2026-04-17 任务：定向优化单阶段 streaming prompt 的增量输出策略；强化“先显示后补全、单事件小负载、全组件小步追加、围绕 changes 输出”的泛化约束，并明确避免一次 append 过重与 summary 重复明细，保持 schema 与工程主链不变。
+- 2026-04-17 任务：定向收敛单阶段 streaming prompt 的 changes 去重策略；强化“本轮只响应 changes、snapshot 仅作上下文、同一新增只保留一个主表达、优先复用已有 block、概览与明细不互相重复”的泛化约束，并合并重复规则避免 prompt 膨胀。
