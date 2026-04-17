@@ -46,3 +46,4 @@
 - 2026-04-16 任务：定向修复 StreamCompiler 全局复用导致的 session 污染；service 改为由调用方显式传入 stream_compiler，runtime 新增 session_compilers 容器并按 session 创建/复用 compiler 后再调用 service，确保同 session 跨轮复用且不同 session 隔离。
 - 2026-04-16 任务：定向收敛 /api/chat/ws/stream 协议结束语义；a2ui_frame 去除 final，streaming_final 更名为 streaming_round_complete，并在本轮完成且请求 final=true 时额外发送 complete；streaming_status 同步去除 final 字段。
 - 2026-04-16 任务：定向优化 streaming 两阶段 prompt 的主组件选择；第一阶段收紧 facts 并强化“多条对象记录优先 list/table”的泛化规则，第二阶段新增 facts/list/table 展开约束与 summary 去明细重复约束，避免记录型数组被拍平成 facts。
+- 2026-04-17 任务：将 streaming 链路从两阶段 LLM 收敛为单阶段 LLM 直接输出 StreamEvent；删除 binding_prompt 与 binding decision 解析筛选代码，service 改为单阶段输入->流式事件解析->逐帧编译输出，并在阶段结束后统一更新 binding/page state。
