@@ -49,3 +49,4 @@
 - 2026-04-17 任务：将 streaming 链路从两阶段 LLM 收敛为单阶段 LLM 直接输出 StreamEvent；删除 binding_prompt 与 binding decision 解析筛选代码，service 改为单阶段输入->流式事件解析->逐帧编译输出，并在阶段结束后统一更新 binding/page state。
 - 2026-04-17 任务：定向优化单阶段 streaming prompt 的增量输出策略；强化“先显示后补全、单事件小负载、全组件小步追加、围绕 changes 输出”的泛化约束，并明确避免一次 append 过重与 summary 重复明细，保持 schema 与工程主链不变。
 - 2026-04-17 任务：定向收敛单阶段 streaming prompt 的 changes 去重策略；强化“本轮只响应 changes、snapshot 仅作上下文、同一新增只保留一个主表达、优先复用已有 block、概览与明细不互相重复”的泛化约束，并合并重复规则避免 prompt 膨胀。
+- 2026-04-20 任务：chat_ui_builder 非流式主线移除后端 loading 预制帧；service 删除 _loading_frames 与启动即发帧逻辑，FrameCompiler._init_surface 收敛为仅初始化 root surface（beginRendering + root Column），并同步更新单路径服务测试断言以适配“由 init_plan 驱动页面生长”。

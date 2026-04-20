@@ -16,8 +16,6 @@ from settings import settings
 
 logger = logging.getLogger(__name__)
 
-STREAM_STATUS_TEXT_ID = 'loading_status_text'
-
 
 def _truncate(value: Any) -> str:
   text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
@@ -37,11 +35,6 @@ class ChatUIService:
     skeleton_compiler = SkeletonCompiler()
     rejected_lines: list[str] = []
     allow_actions = self._has_explicit_actions(source_data)
-
-    for frame in self._loading_frames():
-      logger.info('[%s] Emitting loading frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
-      yield frame
-
     logger.info(
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
         request_id,
@@ -150,29 +143,6 @@ class ChatUIService:
     if isinstance(source_data, list):
       return any(self._has_explicit_actions(item) for item in source_data)
     return False
-
-  def _loading_frames(self) -> list[A2UIFrame]:
-    compiler = FrameCompiler()
-    frames = compiler.apply(
-        InitSurfaceDelta(
-            event='init_surface',
-            surface_id='main',
-            title='正在建立规划流',
-            summary='后端正在等待模型输出 planning deltas，并将在收到 init_plan 后立即切到业务 UI。',
-        )
-    )
-    frames.extend(
-        compiler.apply(
-            AddTextDelta(
-                event='add_text',
-                id=STREAM_STATUS_TEXT_ID,
-                parent_id='root',
-                text='已启动流式生成，等待首个 init_plan 事件。',
-                usage_hint='body',
-            )
-        )
-    )
-    return frames
 
   def _error_frames(self) -> list[A2UIFrame]:
     compiler = FrameCompiler()
