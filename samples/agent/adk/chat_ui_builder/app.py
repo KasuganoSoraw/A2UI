@@ -9,14 +9,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, model_validator
 
+from logging_utils import configure_logging
 from service import ChatUIService
 from settings import settings
 from streaming.runtime import StreamingRuntime
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level, logging.INFO),
-    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-)
+configure_logging(getattr(logging, settings.log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 
@@ -198,7 +196,12 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
         request_id=request_id,
     ):
       body = frame.model_dump_json(exclude_none=True)
-      logger.info('[%s] Streaming frame body=%s', request_id, body[: settings.max_log_chars])
+      logger.info(
+          '[%s] Streaming frame body=%s',
+          request_id,
+          body[: settings.max_log_chars],
+          extra={'full_message': f'[{request_id}] Streaming frame body={body}'},
+      )
       yield body + '\n'
 
   return StreamingResponse(frame_stream(), media_type='application/x-ndjson')

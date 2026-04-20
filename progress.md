@@ -50,3 +50,4 @@
 - 2026-04-17 任务：定向优化单阶段 streaming prompt 的增量输出策略；强化“先显示后补全、单事件小负载、全组件小步追加、围绕 changes 输出”的泛化约束，并明确避免一次 append 过重与 summary 重复明细，保持 schema 与工程主链不变。
 - 2026-04-17 任务：定向收敛单阶段 streaming prompt 的 changes 去重策略；强化“本轮只响应 changes、snapshot 仅作上下文、同一新增只保留一个主表达、优先复用已有 block、概览与明细不互相重复”的泛化约束，并合并重复规则避免 prompt 膨胀。
 - 2026-04-20 任务：chat_ui_builder 非流式主线移除后端 loading 预制帧；service 删除 _loading_frames 与启动即发帧逻辑，FrameCompiler._init_surface 收敛为仅初始化 root surface（beginRendering + root Column），并同步更新单路径服务测试断言以适配“由 init_plan 驱动页面生长”。
+- 2026-04-20 任务：chat_ui_builder 日志系统改造为“控制台彩色分类 + 文件完整追加落盘”；新增 logging_utils 统一初始化 root console/file handler（防重复挂载），日志落盘至 logs/chat_ui_builder.log，并为 Streaming frame/Parsed planning delta/Emitting planning A2UI frame 注入 full_message 以提升文件日志完整度。

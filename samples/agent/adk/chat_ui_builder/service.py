@@ -18,8 +18,37 @@ logger = logging.getLogger(__name__)
 
 
 def _truncate(value: Any) -> str:
-  text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+  text = _to_log_text(value)
   return text[: settings.max_log_chars]
+
+
+
+def _to_log_text(value: Any) -> str:
+  return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
+def _format_message(template: str, args: tuple[Any, ...]) -> str:
+  try:
+    return template % args
+  except Exception:
+    serialized_args = ', '.join(_to_log_text(arg) for arg in args)
+    return f'{template} | args={serialized_args}'
+
+
+def _log_with_full_message(
+    *,
+    logger_obj: logging.Logger,
+    level: int,
+    template: str,
+    preview_args: tuple[Any, ...],
+    full_args: tuple[Any, ...],
+) -> None:
+  logger_obj.log(
+      level,
+      template,
+      *preview_args,
+      extra={'full_message': _format_message(template, full_args)},
+  )
 
 
 class ChatUIService:
@@ -103,7 +132,13 @@ class ChatUIService:
   ) -> list[A2UIFrame]:
     frames: list[A2UIFrame] = []
     for record in records:
-      logger.info('[%s] Parsed planning delta=%s', request_id, _truncate(record.raw_line))
+      _log_with_full_message(
+          logger_obj=logger,
+          level=logging.INFO,
+          template='[%s] Parsed planning delta=%s',
+          preview_args=(request_id, _truncate(record.raw_line)),
+          full_args=(request_id, _to_log_text(record.raw_line)),
+      )
       if not allow_actions and self._is_action_event(record.delta):
         logger.warning(
             '[%s] Skipping action event because source_data has no explicit actions. event=%s',
@@ -113,7 +148,13 @@ class ChatUIService:
         continue
       compiled = skeleton_compiler.apply(record.delta)
       for frame in compiled:
-        logger.info('[%s] Emitting planning A2UI frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
+        _log_with_full_message(
+            logger_obj=logger,
+            level=logging.INFO,
+            template='[%s] Emitting planning A2UI frame=%s',
+            preview_args=(request_id, _truncate(frame.model_dump(exclude_none=True))),
+            full_args=(request_id, _to_log_text(frame.model_dump(exclude_none=True))),
+        )
       frames.extend(compiled)
     return frames
 
