@@ -71,7 +71,6 @@ class ChatUIService:
       content = getattr(delta, 'content', None)
       if not content:
         continue
-      logger.info('[%s] LLM chunk=%s', request_id, _truncate(content))
       parsed_records, rejected = parser.feed(content)
       rejected_lines.extend(rejected)
       for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id, allow_actions):
@@ -83,7 +82,7 @@ class ChatUIService:
       yield frame
 
     raw_output = parser.raw_output
-    logger.info('[%s] Raw LLM output=%s', request_id, _truncate(raw_output))
+    logger.info('[%s] Raw LLM output=%s', request_id, raw_output)
 
     if parser.seen_planning_delta:
       for rejected_line in rejected_lines:

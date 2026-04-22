@@ -39,13 +39,14 @@ class RegionArchetypeBuilder:
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     raise NotImplementedError
 
-  def _create_region_root(self, context: RegionBuildContext, emit: EmitLowLevel, *, layout: str = 'Column') -> list[A2UIFrame]:
+  def _create_region_root(self, context: RegionBuildContext, emit: EmitLowLevel, *, layout: str = 'Column', appearance='region_in_root') -> list[A2UIFrame]:
     return emit(
         AddSectionDelta(
             event='add_section',
             id=context.delta.id,
             parent_id=context.slot_parent,
             layout=layout,
+            appearance=appearance,
         )
     )
 

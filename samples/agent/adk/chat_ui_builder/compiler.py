@@ -208,7 +208,7 @@ class FrameCompiler:
     self.surface_id = delta.surface_id
     self.initialized = True
     self.containers = {
-        self.root_id: ContainerState(component_id=self.root_id, container_type='Column')
+        self.root_id: ContainerState(component_id=self.root_id, container_type='Row')
     }
     self.used_ids = {self.root_id}
     self.aliases = {self.root_id: self.root_id}
@@ -219,7 +219,7 @@ class FrameCompiler:
     root_component = ComponentNode(
         id=self.root_id,
         component={
-            'Column': {
+            'Row': {
                 'children': {'explicitList': []},
                 'alignment': 'stretch',
                 'distribution': 'start',
