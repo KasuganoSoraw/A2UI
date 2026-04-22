@@ -216,7 +216,12 @@ class ContentHandler:
     def build(parent_id: str) -> object:
       return resolved.model_copy(update={'parent_id': parent_id})
 
-    return self.router.apply_to_region(delta.region_id, 'text', build)
+    slot_name = 'text'
+    region_binding = self.runtime.regions.get(delta.region_id)
+    if delta.usage_hint == 'code_echo' and region_binding and region_binding.role == 'supporting':
+      slot_name = 'code'
+
+    return self.router.apply_to_region(delta.region_id, slot_name, build)
 
   def handle_table(self, delta: AddRegionTableDelta) -> list[A2UIFrame]:
     table_spec = {

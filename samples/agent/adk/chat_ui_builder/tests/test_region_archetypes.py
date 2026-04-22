@@ -144,6 +144,78 @@ def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   assert 'details_fact' in component_ids
 
 
+
+
+def test_supporting_code_echo_routes_to_code_container_with_code_block_appearance() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Supporting code page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='supporting_region', role='supporting', title='补充信息'))
+
+  first_frames = compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='code_line_1',
+          region_id='supporting_region',
+          text='kubectl get pods -A',
+          usage_hint='code_echo',
+      )
+  )
+  second_frames = compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='code_line_2',
+          region_id='supporting_region',
+          text='NAME READY STATUS',
+          usage_hint='code_echo',
+      )
+  )
+
+  binding = compiler.regions['supporting_region']
+  assert binding.parent_for('code') == 'supporting_region_code'
+
+  code_container_components = []
+  for frame in first_frames:
+    if not frame.surfaceUpdate:
+      continue
+    for component in frame.surfaceUpdate.components:
+      if component.id == 'supporting_region_code':
+        code_container_components.append(component)
+
+  assert code_container_components
+  assert code_container_components[0].component['Column']['appearance'] == 'code_block'
+
+  first_data_paths = [
+      frame.dataModelUpdate.path
+      for frame in first_frames
+      if frame.dataModelUpdate
+  ]
+  second_data_paths = [
+      frame.dataModelUpdate.path
+      for frame in second_frames
+      if frame.dataModelUpdate
+  ]
+  assert '/content/code_line_1' in first_data_paths
+  assert '/content/code_line_2' in second_data_paths
+
+
+def test_non_supporting_code_echo_falls_back_to_default_text_slot() -> None:
+  compiler = SkeletonCompiler()
+  compiler.apply(InitPlanDelta(event='init_plan', title='Details code page'))
+  compiler.apply(AddRegionDelta(event='add_region', id='details_region', role='details', title='详情'))
+
+  compiler.apply(
+      AddRegionTextDelta(
+          event='add_region_text',
+          id='details_code_line',
+          region_id='details_region',
+          text='echo hello',
+          usage_hint='code_echo',
+      )
+  )
+
+  binding = compiler.regions['details_region']
+  assert binding.parent_for('code') == 'details_region_body'
+
 def test_warning_usage_hint_is_preserved_in_compiled_text_component() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Warning page'))

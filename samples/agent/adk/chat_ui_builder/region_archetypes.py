@@ -345,7 +345,21 @@ class SupportingArchetypeBuilder(RegionArchetypeBuilder):
     frames = self._create_region_root(context, emit)
     header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
     frames.extend(header_body_frames)
+
+    code_id = f'{region_id}_code'
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=code_id,
+            parent_id=region_id,
+            layout='Column',
+            order=40,
+            appearance='code_block',
+        )
+    )
+
     slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['code'] = code_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 

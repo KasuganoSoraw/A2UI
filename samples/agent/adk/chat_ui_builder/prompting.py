@@ -29,7 +29,7 @@ PLANNING_DELTA_CONTRACT = [
         'id': 'string',
         'region_id': 'string',
         'text': 'string',
-        'usage_hint': 'h1 | h2 | h3 | body | caption | warning',
+        'usage_hint': 'h1 | h2 | h3 | body | caption | warning | code_echo',
     },
     {
         'event': 'add_region_fact',
@@ -227,6 +227,7 @@ role 承载规则：
 - `body`: 默认正文
 - `caption`: 辅助说明、补充细节、弱强调文本
 - `warning`: 风险、异常、注意事项
+- `code_echo`: 命令回显/代码块，仅允许用于 supporting role；需连续输出，未结束前不要插入普通正文
 
 role × presentation：
 - `list`: `standard` | `timeline`
