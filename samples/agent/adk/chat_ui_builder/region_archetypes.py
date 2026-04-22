@@ -239,6 +239,7 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
             parent_id=region_id,
             layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
             order=30,
+            appearance='detail_fact',
         )
     )
     frames.extend(
