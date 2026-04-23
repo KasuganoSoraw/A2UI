@@ -22,6 +22,7 @@ class ChatRequest(BaseModel):
   message: str | None = None
   source_data: dict | list | str | int | float | bool | None = None
   user_query: str | None = None
+  model: str | None = None
 
   @model_validator(mode='after')
   def ensure_non_empty_request(self) -> 'ChatRequest':
@@ -194,6 +195,7 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
         source_data=payload.source_data,
         user_query=payload.user_query,
         request_id=request_id,
+        model_name=payload.model,
     ):
       body = frame.model_dump_json(exclude_none=True)
       logger.info(

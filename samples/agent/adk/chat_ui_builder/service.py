@@ -28,14 +28,21 @@ def _to_log_text(value: Any) -> str:
 
 
 class ChatUIService:
+  def _resolve_model_config(self, model_name: str | None) -> tuple[str, str, str]:
+    if model_name in {'glm-5', 'glm-5.1'}:
+      return ('https://dashscope.aliyuncs.com/compatible-mode/v1', 'sk-xxxxxxx', model_name)
+    return (settings.openai_api_base, settings.openai_api_key, settings.local_model_name)
+
   async def stream_frames(
       self,
       user_message: str | None = None,
       source_data: Any | None = None,
       user_query: str | None = None,
       request_id: str = 'unknown',
+      model_name: str | None = None,
   ) -> AsyncIterator[A2UIFrame]:
     messages = build_messages(user_message=user_message, source_data=source_data, user_query=user_query)
+    api_base, api_key, local_model_name = self._resolve_model_config(model_name)
     parser = PlanningDeltaStreamParser()
     skeleton_compiler = SkeletonCompiler()
     rejected_lines: list[str] = []
@@ -43,8 +50,8 @@ class ChatUIService:
     logger.info(
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
         request_id,
-        settings.openai_api_base,
-        settings.litellm_model,
+        api_base,
+        f'openai/{local_model_name}',
         settings.temperature,
     )
     logger.info('[%s] User query=%s', request_id, _truncate(user_query or user_message or ''))
@@ -53,10 +60,10 @@ class ChatUIService:
     logger.info('[%s] LLM messages=%s', request_id, _truncate(messages))
 
     response = await acompletion(
-        model=settings.litellm_model,
+        model=f'openai/{local_model_name}',
         messages=messages,
-        api_base=settings.openai_api_base,
-        api_key=settings.openai_api_key,
+        api_base=api_base,
+        api_key=api_key,
         stream=True,
         temperature=settings.temperature,
         extra_body={
