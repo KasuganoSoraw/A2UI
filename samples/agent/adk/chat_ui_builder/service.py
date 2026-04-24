@@ -28,10 +28,41 @@ def _to_log_text(value: Any) -> str:
 
 
 class ChatUIService:
-  def _resolve_model_config(self, model_name: str | None) -> tuple[str, str, str]:
+  def _resolve_model_config(self, model_name: str | None) -> tuple[str, str, str, bool | None, bool | None, dict[str, Any] | None]:
     if model_name in {'glm-5', 'glm-5.1'}:
-      return ('https://dashscope.aliyuncs.com/compatible-mode/v1', 'sk-xxxxxxx', model_name)
-    return (settings.openai_api_base, settings.openai_api_key, settings.local_model_name)
+      return (
+          'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          'sk-xxxxxxx',
+          f'openai/{model_name}',
+          None,
+          None,
+          {
+              'chat_template_kwargs': {
+                  'enable_thinking': False,
+              }
+          },
+      )
+    if model_name in {'deepseek-v4-flash', 'deepseek-v4-pro'}:
+      return (
+          'https://api.deepseek.com',
+          'sk-bbbbbbbbbbb',
+          f'deepseek/{model_name}',
+          False,
+          True,
+          None,
+      )
+    return (
+        settings.openai_api_base,
+        settings.openai_api_key,
+        f'openai/{settings.local_model_name}',
+        None,
+        None,
+        {
+            'chat_template_kwargs': {
+                'enable_thinking': False,
+            }
+        },
+    )
 
   async def stream_frames(
       self,
@@ -42,7 +73,7 @@ class ChatUIService:
       model_name: str | None = None,
   ) -> AsyncIterator[A2UIFrame]:
     messages = build_messages(user_message=user_message, source_data=source_data, user_query=user_query)
-    api_base, api_key, local_model_name = self._resolve_model_config(model_name)
+    api_base, api_key, litellm_model, ssl_verify, aiohttp_trust_env, extra_body = self._resolve_model_config(model_name)
     parser = PlanningDeltaStreamParser()
     skeleton_compiler = SkeletonCompiler()
     rejected_lines: list[str] = []
@@ -51,7 +82,7 @@ class ChatUIService:
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
         request_id,
         api_base,
-        f'openai/{local_model_name}',
+        litellm_model,
         settings.temperature,
     )
     logger.info('[%s] User query=%s', request_id, _truncate(user_query or user_message or ''))
@@ -59,19 +90,22 @@ class ChatUIService:
     logger.info('[%s] allow_actions=%s', request_id, allow_actions)
     logger.info('[%s] LLM messages=%s', request_id, _truncate(messages))
 
-    response = await acompletion(
-        model=f'openai/{local_model_name}',
-        messages=messages,
-        api_base=api_base,
-        api_key=api_key,
-        stream=True,
-        temperature=settings.temperature,
-        extra_body={
-            "chat_template_kwargs": {
-                "enable_thinking": False
-            }
-        },
-    )
+    completion_kwargs: dict[str, Any] = {
+        'model': litellm_model,
+        'messages': messages,
+        'api_base': api_base,
+        'api_key': api_key,
+        'stream': True,
+        'temperature': settings.temperature,
+    }
+    if ssl_verify is not None:
+      completion_kwargs['ssl_verify'] = ssl_verify
+    if aiohttp_trust_env is not None:
+      completion_kwargs['aiohttp_trust_env'] = aiohttp_trust_env
+    if extra_body is not None:
+      completion_kwargs['extra_body'] = extra_body
+
+    response = await acompletion(**completion_kwargs)
 
     async for chunk in response:
       delta = chunk.choices[0].delta if chunk.choices else None
