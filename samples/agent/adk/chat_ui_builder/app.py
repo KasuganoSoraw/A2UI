@@ -4,7 +4,7 @@ import json
 import logging
 from uuid import uuid4
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, model_validator
@@ -22,7 +22,6 @@ class ChatRequest(BaseModel):
   message: str | None = None
   source_data: dict | list | str | int | float | bool | None = None
   user_query: str | None = None
-  model: str | None = None
 
   @model_validator(mode='after')
   def ensure_non_empty_request(self) -> 'ChatRequest':
@@ -180,7 +179,7 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
 
 
 @app.post('/api/chat/stream')
-async def chat_stream(payload: ChatRequest) -> StreamingResponse:
+async def chat_stream(payload: ChatRequest, model: str | None = Query(default=None)) -> StreamingResponse:
   request_id = uuid4().hex[:8]
   logger.info(
       '[%s] Incoming chat request user_query=%s source_data=%s',
@@ -195,7 +194,7 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
         source_data=payload.source_data,
         user_query=payload.user_query,
         request_id=request_id,
-        model_name=payload.model,
+        model_name=model,
     ):
       body = frame.model_dump_json(exclude_none=True)
       logger.info(
