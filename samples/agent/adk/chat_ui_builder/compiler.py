@@ -19,7 +19,7 @@ from models import (
     AddTableDelta,
     AddTextDelta,
     UpdateTableSpecDelta,
-    AppendListItemDelta,
+    AddListItemDelta,
     ComponentNode,
     DataMapEntry,
     InitSurfaceDelta,
@@ -77,8 +77,8 @@ class FrameCompiler:
       return self._add_pie_chart(delta)
     if isinstance(delta, AddMermaidDelta):
       return self._add_mermaid(delta)
-    if isinstance(delta, AppendListItemDelta):
-      return self._append_list_item(delta)
+    if isinstance(delta, AddListItemDelta):
+      return self._add_list_item(delta)
     return []
 
   def _resolve_parent_id(self, parent_id: str) -> str:
@@ -568,7 +568,7 @@ class FrameCompiler:
     divider = ComponentNode(id=divider_id, component={'Divider': {'axis': 'horizontal'}})
     return prefix_frames + [self._surface_update([parent_update, divider])]
 
-  def _append_list_item(self, delta: AppendListItemDelta) -> list[A2UIFrame]:
+  def _add_list_item(self, delta: AddListItemDelta) -> list[A2UIFrame]:
     prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'list', '列表内容')
     parent = self._ensure_container(parent_id)
     item_index = self.list_item_counts.get(parent.component_id, 0) + 1

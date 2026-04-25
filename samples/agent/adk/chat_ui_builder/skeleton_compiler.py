@@ -29,8 +29,8 @@ from models import (
     AddPieChartDelta,
     AddTableDelta,
     AddTextDelta,
-    AppendListItemDelta,
-    AppendRegionListItemDelta,
+    AddListItemDelta,
+    AddRegionListItemDelta,
     FinalizeDelta,
     InitPlanDelta,
     InitSurfaceDelta,
@@ -370,10 +370,10 @@ class ContentHandler:
 
     return self.router.apply_to_region(delta.region_id, 'divider', build)
 
-  def handle_list_item(self, delta: AppendRegionListItemDelta) -> list[A2UIFrame]:
+  def handle_list_item(self, delta: AddRegionListItemDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
-      return AppendListItemDelta(
-          event='append_list_item',
+      return AddListItemDelta(
+          event='add_list_item',
           id=delta.id,
           parent_id=parent_id,
           title=delta.title,
@@ -407,7 +407,7 @@ class SkeletonCompiler:
         AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),
         AddRegionInputDelta: lambda delta: self.content_handler.handle_input(delta),
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
-        AppendRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
+        AddRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
     }
 
   @property

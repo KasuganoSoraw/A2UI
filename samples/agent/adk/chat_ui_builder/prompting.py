@@ -56,7 +56,7 @@ PLANNING_DELTA_CONTRACT = [
         'value': 'optional string | boolean | number | array',
     },
     {
-        'event': 'append_region_list_item',
+        'event': 'add_region_list_item',
         'id': 'string',
         'region_id': 'string',
         'title': 'string',

@@ -79,8 +79,8 @@ class CreateListBlockEvent(BaseModel):
   items: list[ListItem] = Field(default_factory=list)
 
 
-class AppendListItemsEvent(BaseModel):
-  event: Literal['append_list_items']
+class AddListItemsEvent(BaseModel):
+  event: Literal['add_list_items']
   block_id: str
   items: list[ListItem]
 
@@ -121,7 +121,7 @@ StreamEvent = Annotated[
     | CreateFactsBlockEvent
     | AppendFactsEvent
     | CreateListBlockEvent
-    | AppendListItemsEvent
+    | AddListItemsEvent
     | CreateTableBlockEvent
     | AppendTableRowsEvent
     | SetFinalSummaryTextEvent

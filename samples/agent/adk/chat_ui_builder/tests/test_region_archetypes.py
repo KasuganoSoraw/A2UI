@@ -20,7 +20,7 @@ from models import (
     AddRegionTableDelta,
     InitPlanDelta,
     AddRegionTextDelta,
-    AppendRegionListItemDelta,
+    AddRegionListItemDelta,
     SKELETON_DELTA_ADAPTER,
 )
 from skeleton_compiler import SkeletonCompiler
@@ -248,8 +248,8 @@ def test_list_item_usage_hint_prefers_model_values_with_default_fallback() -> No
   compiler.apply(AddRegionDelta(event='add_region', id='list_region', role='list', title='Records'))
 
   hinted_frames = compiler.apply(
-      AppendRegionListItemDelta(
-          event='append_region_list_item',
+      AddRegionListItemDelta(
+          event='add_region_list_item',
           id='item_with_hint',
           region_id='list_region',
           title='高优先级记录',
@@ -259,8 +259,8 @@ def test_list_item_usage_hint_prefers_model_values_with_default_fallback() -> No
       )
   )
   default_frames = compiler.apply(
-      AppendRegionListItemDelta(
-          event='append_region_list_item',
+      AddRegionListItemDelta(
+          event='add_region_list_item',
           id='item_default_hint',
           region_id='list_region',
           title='普通记录',
@@ -307,8 +307,8 @@ def test_list_timeline_variant_compiles_to_timeline_and_timeline_item() -> None:
   )
 
   frames = compiler.apply(
-      AppendRegionListItemDelta(
-          event='append_region_list_item',
+      AddRegionListItemDelta(
+          event='add_region_list_item',
           id='timeline_item',
           region_id='timeline_region',
           title='10:32 服务告警',
