@@ -2,16 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
-import sys
-from pathlib import Path
 from types import SimpleNamespace
 
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-  sys.path.insert(0, str(ROOT))
-
-import service as service_module
-from service import ChatUIService
+from .. import service as service_module
+from ..service import ChatUIService
 
 
 class FakeResponse:
@@ -84,14 +78,14 @@ def test_stream_frames_uses_planning_delta_path(monkeypatch) -> None:
   )
 
   assert len(frames) > 3
-  title_entries = [
-      entry
+  assert any(frame.beginRendering for frame in frames)
+  component_ids = {
+      component.id
       for frame in frames
-      if frame.dataModelUpdate and frame.dataModelUpdate.path == '/title'
-      for entry in frame.dataModelUpdate.contents
-      if entry.key == 'title'
-  ]
-  assert any(entry.valueString == '审批中心' for entry in title_entries)
+      if frame.surfaceUpdate
+      for component in frame.surfaceUpdate.components
+  }
+  assert 'hero_region' in component_ids
   assert all(
       not (frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/planning_delta_error_text') for frame in frames
   )
@@ -104,15 +98,6 @@ def test_stream_frames_emits_error_without_planning_delta(monkeypatch) -> None:
   monkeypatch.setattr(service_module, 'acompletion', fake_acompletion)
 
   frames = asyncio.run(_collect_frames(ChatUIService(), message='返回任意文本'))
-
-  title_entries = [
-      entry
-      for frame in frames
-      if frame.dataModelUpdate and frame.dataModelUpdate.path == '/title'
-      for entry in frame.dataModelUpdate.contents
-      if entry.key == 'title'
-  ]
-  assert any(entry.valueString == '页面规划失败' for entry in title_entries)
 
   assert any(
       frame.dataModelUpdate and frame.dataModelUpdate.path == '/content/planning_delta_error_text'

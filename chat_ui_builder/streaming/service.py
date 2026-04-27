@@ -8,8 +8,8 @@ from typing import Any, Literal
 from litellm import acompletion
 from pydantic import BaseModel, Field
 
-from settings import settings
-from streaming.models import (
+from ..settings import settings
+from .models import (
     STREAM_EVENT_ADAPTER,
     CreateFactsBlockEvent,
     CreateListBlockEvent,
@@ -20,8 +20,8 @@ from streaming.models import (
     SetFinalSummaryTextEvent,
     StreamEvent,
 )
-from streaming.prompt import build_stream_event_messages
-from streaming.stream_compiler import StreamCompiler
+from .prompt import build_stream_event_messages
+from .stream_compiler import StreamCompiler
 
 logger = logging.getLogger(__name__)
 

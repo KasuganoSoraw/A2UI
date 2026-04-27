@@ -40,7 +40,7 @@ class AddRegionTextDelta(BaseModel):
   id: str
   region_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning", "code_echo"] = "body"
 
 
 class AddRegionFactDelta(BaseModel):
@@ -90,8 +90,8 @@ class AddRegionDividerDelta(BaseModel):
   region_id: str
 
 
-class AppendRegionListItemDelta(BaseModel):
-  event: Literal["append_region_list_item"]
+class AddRegionListItemDelta(BaseModel):
+  event: Literal["add_region_list_item"]
   id: str
   region_id: str
   title: str
@@ -192,7 +192,7 @@ class AddTextDelta(BaseModel):
   id: str
   parent_id: str
   text: str
-  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning"] = "body"
+  usage_hint: Literal["h1", "h2", "h3", "body", "caption", "warning", "code_echo"] = "body"
 
 
 class AddKeyValueDelta(BaseModel):
@@ -298,8 +298,8 @@ class AddDividerDelta(BaseModel):
   parent_id: str
 
 
-class AppendListItemDelta(BaseModel):
-  event: Literal["append_list_item"]
+class AddListItemDelta(BaseModel):
+  event: Literal["add_list_item"]
   id: str
   parent_id: str
   title: str
@@ -321,7 +321,7 @@ SkeletonDelta = Annotated[
     | AddRegionActionDelta
     | AddRegionInputDelta
     | AddRegionDividerDelta
-    | AppendRegionListItemDelta
+    | AddRegionListItemDelta
     | AddRegionTableDelta
     | AddRegionLineChartDelta
     | AddRegionPieChartDelta
@@ -347,7 +347,7 @@ Delta = Annotated[
     | AddMermaidDelta
     | AddInputDelta
     | AddDividerDelta
-    | AppendListItemDelta
+    | AddListItemDelta
     | FinalizeDelta,
     Field(discriminator="event"),
 ]

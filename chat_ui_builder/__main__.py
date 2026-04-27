@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import uvicorn
 
-from app import app
-from settings import settings
+from .app import app
+from .settings import settings
 
 
 def main() -> None:

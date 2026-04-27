@@ -4,21 +4,21 @@ import json
 from dataclasses import dataclass
 from typing import Literal
 
-from compiler import FrameCompiler
-from models import (
+from ..compiler import FrameCompiler
+from ..models import (
     A2UIFrame,
     AddKeyValueDelta,
     AddSectionDelta,
     AddTableDelta,
     AddTextDelta,
-    AppendListItemDelta,
+    AddListItemDelta,
     InitSurfaceDelta,
     TableColumnSpec,
     UpdateTableSpecDelta,
 )
-from streaming.models import (
+from .models import (
     AppendFactsEvent,
-    AppendListItemsEvent,
+    AddListItemsEvent,
     AppendTableRowsEvent,
     AppendTextLinesEvent,
     CreateFactsBlockEvent,
@@ -101,8 +101,8 @@ class StreamCompiler:
       return self._handle_append_facts(event)
     if isinstance(event, CreateListBlockEvent):
       return self._handle_create_list_block(event)
-    if isinstance(event, AppendListItemsEvent):
-      return self._handle_append_list_items(event)
+    if isinstance(event, AddListItemsEvent):
+      return self._handle_add_list_items(event)
     if isinstance(event, CreateTableBlockEvent):
       return self._handle_create_table_block(event)
     if isinstance(event, AppendTableRowsEvent):
@@ -190,8 +190,8 @@ class StreamCompiler:
     for item in items:
       frames.extend(
           self._compile(
-              AppendListItemDelta(
-                  event='append_list_item',
+              AddListItemDelta(
+                  event='add_list_item',
                   id=f'{block_id}__item_{item.item_id}',
                   parent_id=block_id,
                   title=item.title,
@@ -353,11 +353,11 @@ class StreamCompiler:
     frames.extend(self._emit_list_items(list_host_id, event.items))
     return frames
 
-  def _handle_append_list_items(self, event: AppendListItemsEvent) -> list[A2UIFrame]:
+  def _handle_add_list_items(self, event: AddListItemsEvent) -> list[A2UIFrame]:
     self._ensure_surface_initialized()
     state = self._require_block(event.block_id, expected_type='list')
     if not state.list_host_id:
-      raise ValueError(f'block_id={event.block_id} 缺少 list_host_id，无法 append_list_items。')
+      raise ValueError(f'block_id={event.block_id} 缺少 list_host_id，无法 add_list_items。')
     return self._emit_list_items(state.list_host_id, event.items)
 
   def _handle_create_table_block(self, event: CreateTableBlockEvent) -> list[A2UIFrame]:

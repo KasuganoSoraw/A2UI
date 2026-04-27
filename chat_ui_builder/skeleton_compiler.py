@@ -5,8 +5,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Callable
 
-from compiler import FrameCompiler
-from models import (
+from .compiler import FrameCompiler
+from .models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
@@ -29,13 +29,13 @@ from models import (
     AddPieChartDelta,
     AddTableDelta,
     AddTextDelta,
-    AppendListItemDelta,
-    AppendRegionListItemDelta,
+    AddListItemDelta,
+    AddRegionListItemDelta,
     FinalizeDelta,
     InitPlanDelta,
     InitSurfaceDelta,
 )
-from region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
+from .region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
 
 logger = logging.getLogger(__name__)
 
@@ -216,7 +216,12 @@ class ContentHandler:
     def build(parent_id: str) -> object:
       return resolved.model_copy(update={'parent_id': parent_id})
 
-    return self.router.apply_to_region(delta.region_id, 'text', build)
+    slot_name = 'text'
+    region_binding = self.runtime.regions.get(delta.region_id)
+    if delta.usage_hint == 'code_echo' and region_binding and region_binding.role == 'supporting':
+      slot_name = 'code'
+
+    return self.router.apply_to_region(delta.region_id, slot_name, build)
 
   def handle_table(self, delta: AddRegionTableDelta) -> list[A2UIFrame]:
     table_spec = {
@@ -365,10 +370,10 @@ class ContentHandler:
 
     return self.router.apply_to_region(delta.region_id, 'divider', build)
 
-  def handle_list_item(self, delta: AppendRegionListItemDelta) -> list[A2UIFrame]:
+  def handle_list_item(self, delta: AddRegionListItemDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
-      return AppendListItemDelta(
-          event='append_list_item',
+      return AddListItemDelta(
+          event='add_list_item',
           id=delta.id,
           parent_id=parent_id,
           title=delta.title,
@@ -402,7 +407,7 @@ class SkeletonCompiler:
         AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),
         AddRegionInputDelta: lambda delta: self.content_handler.handle_input(delta),
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
-        AppendRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
+        AddRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
     }
 
   @property

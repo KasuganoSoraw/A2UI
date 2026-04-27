@@ -38,7 +38,7 @@ export MAX_LOG_CHARS="1200"
 ## 启动后端
 
 ```bash
-cd samples/agent/adk/chat_ui_builder
+cd chat_ui_builder
 uv run .
 ```
 

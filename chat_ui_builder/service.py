@@ -7,46 +7,82 @@ from typing import Any
 
 from litellm import acompletion
 
-from compiler import FrameCompiler
-from models import A2UIFrame, AddRegionActionDelta, AddRegionDelta, AddTextDelta, InitSurfaceDelta
-from planning_stream import PlanningDeltaRecord, PlanningDeltaStreamParser
-from prompting import build_messages
-from skeleton_compiler import SkeletonCompiler
-from settings import settings
+from .compiler import FrameCompiler
+from .models import A2UIFrame, AddRegionActionDelta, AddRegionDelta, AddTextDelta, InitSurfaceDelta
+from .planning_stream import PlanningDeltaRecord, PlanningDeltaStreamParser
+from .prompting import build_messages
+from .skeleton_compiler import SkeletonCompiler
+from .settings import settings
 
 logger = logging.getLogger(__name__)
 
-STREAM_STATUS_TEXT_ID = 'loading_status_text'
-
 
 def _truncate(value: Any) -> str:
-  text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+  text = _to_log_text(value)
   return text[: settings.max_log_chars]
 
 
+
+def _to_log_text(value: Any) -> str:
+  return value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+
+
 class ChatUIService:
+  def _resolve_model_config(self, model_name: str | None) -> tuple[str, str, str, bool | None, bool | None, dict[str, Any] | None]:
+    if model_name in {'glm-5', 'glm-5.1'}:
+      return (
+          'https://dashscope.aliyuncs.com/compatible-mode/v1',
+          'sk-xxxxxxx',
+          f'openai/{model_name}',
+          None,
+          None,
+          {
+              'chat_template_kwargs': {
+                  'enable_thinking': False,
+              }
+          },
+      )
+    if model_name in {'deepseek-v4-flash', 'deepseek-v4-pro'}:
+      return (
+          'https://api.deepseek.com',
+          'sk-bbbbbbbbbbb',
+          f'deepseek/{model_name}',
+          False,
+          True,
+          None,
+      )
+    return (
+        settings.openai_api_base,
+        settings.openai_api_key,
+        f'openai/{settings.local_model_name}',
+        None,
+        None,
+        {
+            'chat_template_kwargs': {
+                'enable_thinking': False,
+            }
+        },
+    )
+
   async def stream_frames(
       self,
       user_message: str | None = None,
       source_data: Any | None = None,
       user_query: str | None = None,
       request_id: str = 'unknown',
+      model_name: str | None = None,
   ) -> AsyncIterator[A2UIFrame]:
     messages = build_messages(user_message=user_message, source_data=source_data, user_query=user_query)
+    api_base, api_key, litellm_model, ssl_verify, aiohttp_trust_env, extra_body = self._resolve_model_config(model_name)
     parser = PlanningDeltaStreamParser()
     skeleton_compiler = SkeletonCompiler()
     rejected_lines: list[str] = []
     allow_actions = self._has_explicit_actions(source_data)
-
-    for frame in self._loading_frames():
-      logger.info('[%s] Emitting loading frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
-      yield frame
-
     logger.info(
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
         request_id,
-        settings.openai_api_base,
-        settings.litellm_model,
+        api_base,
+        litellm_model,
         settings.temperature,
     )
     logger.info('[%s] User query=%s', request_id, _truncate(user_query or user_message or ''))
@@ -54,26 +90,28 @@ class ChatUIService:
     logger.info('[%s] allow_actions=%s', request_id, allow_actions)
     logger.info('[%s] LLM messages=%s', request_id, _truncate(messages))
 
-    response = await acompletion(
-        model=settings.litellm_model,
-        messages=messages,
-        api_base=settings.openai_api_base,
-        api_key=settings.openai_api_key,
-        stream=True,
-        temperature=settings.temperature,
-        extra_body={
-            "chat_template_kwargs": {
-                "enable_thinking": False
-            }
-        },
-    )
+    completion_kwargs: dict[str, Any] = {
+        'model': litellm_model,
+        'messages': messages,
+        'api_base': api_base,
+        'api_key': api_key,
+        'stream': True,
+        'temperature': settings.temperature,
+    }
+    if ssl_verify is not None:
+      completion_kwargs['ssl_verify'] = ssl_verify
+    if aiohttp_trust_env is not None:
+      completion_kwargs['aiohttp_trust_env'] = aiohttp_trust_env
+    if extra_body is not None:
+      completion_kwargs['extra_body'] = extra_body
+
+    response = await acompletion(**completion_kwargs)
 
     async for chunk in response:
       delta = chunk.choices[0].delta if chunk.choices else None
       content = getattr(delta, 'content', None)
       if not content:
         continue
-      logger.info('[%s] LLM chunk=%s', request_id, _truncate(content))
       parsed_records, rejected = parser.feed(content)
       rejected_lines.extend(rejected)
       for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id, allow_actions):
@@ -85,7 +123,7 @@ class ChatUIService:
       yield frame
 
     raw_output = parser.raw_output
-    logger.info('[%s] Raw LLM output=%s', request_id, _truncate(raw_output))
+    logger.info('[%s] Raw LLM output=%s', request_id, raw_output)
 
     if parser.seen_planning_delta:
       for rejected_line in rejected_lines:
@@ -110,7 +148,6 @@ class ChatUIService:
   ) -> list[A2UIFrame]:
     frames: list[A2UIFrame] = []
     for record in records:
-      logger.info('[%s] Parsed planning delta=%s', request_id, _truncate(record.raw_line))
       if not allow_actions and self._is_action_event(record.delta):
         logger.warning(
             '[%s] Skipping action event because source_data has no explicit actions. event=%s',
@@ -119,8 +156,6 @@ class ChatUIService:
         )
         continue
       compiled = skeleton_compiler.apply(record.delta)
-      for frame in compiled:
-        logger.info('[%s] Emitting planning A2UI frame=%s', request_id, _truncate(frame.model_dump(exclude_none=True)))
       frames.extend(compiled)
     return frames
 
@@ -150,29 +185,6 @@ class ChatUIService:
     if isinstance(source_data, list):
       return any(self._has_explicit_actions(item) for item in source_data)
     return False
-
-  def _loading_frames(self) -> list[A2UIFrame]:
-    compiler = FrameCompiler()
-    frames = compiler.apply(
-        InitSurfaceDelta(
-            event='init_surface',
-            surface_id='main',
-            title='正在建立规划流',
-            summary='后端正在等待模型输出 planning deltas，并将在收到 init_plan 后立即切到业务 UI。',
-        )
-    )
-    frames.extend(
-        compiler.apply(
-            AddTextDelta(
-                event='add_text',
-                id=STREAM_STATUS_TEXT_ID,
-                parent_id='root',
-                text='已启动流式生成，等待首个 init_plan 事件。',
-                usage_hint='body',
-            )
-        )
-    )
-    return frames
 
   def _error_frames(self) -> list[A2UIFrame]:
     compiler = FrameCompiler()

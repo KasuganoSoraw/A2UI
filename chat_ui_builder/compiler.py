@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from models import (
+from .models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
@@ -19,7 +19,7 @@ from models import (
     AddTableDelta,
     AddTextDelta,
     UpdateTableSpecDelta,
-    AppendListItemDelta,
+    AddListItemDelta,
     ComponentNode,
     DataMapEntry,
     InitSurfaceDelta,
@@ -77,8 +77,8 @@ class FrameCompiler:
       return self._add_pie_chart(delta)
     if isinstance(delta, AddMermaidDelta):
       return self._add_mermaid(delta)
-    if isinstance(delta, AppendListItemDelta):
-      return self._append_list_item(delta)
+    if isinstance(delta, AddListItemDelta):
+      return self._add_list_item(delta)
     return []
 
   def _resolve_parent_id(self, parent_id: str) -> str:
@@ -207,80 +207,25 @@ class FrameCompiler:
   def _init_surface(self, delta: InitSurfaceDelta) -> list[A2UIFrame]:
     self.surface_id = delta.surface_id
     self.initialized = True
+    self.containers = {
+        self.root_id: ContainerState(component_id=self.root_id, container_type='Row')
+    }
     self.used_ids = {self.root_id}
     self.aliases = {self.root_id: self.root_id}
-    self.containers = {
-        self.root_id: ContainerState(component_id=self.root_id, container_type='Column')
-    }
     self.local_child_order = {}
-
-    frame_card_id = self._register_id('surface_frame_card')
-    frame_content_id = self._helper_id(frame_card_id, 'content')
-    intro_card_id = self._register_id('surface_intro_card')
-    intro_content_id = self._helper_id(intro_card_id, 'content')
-    title_id = self._helper_id(intro_card_id, 'title')
-    root_children = [frame_card_id]
-    components = [
-        ComponentNode(
-            id=self.root_id,
-            component={
-                'Column': {
-                    'children': {'explicitList': root_children},
-                    'alignment': 'stretch',
-                    'distribution': 'start',
-                }
-            },
-        ),
-        ComponentNode(id=frame_card_id, component={'Card': {'child': frame_content_id}}),
-        ComponentNode(
-            id=frame_content_id,
-            component={
-                'Column': {
-                    'children': {'explicitList': [intro_card_id]},
-                    'alignment': 'stretch',
-                    'distribution': 'start',
-                }
-            },
-        ),
-        ComponentNode(id=intro_card_id, component={'Card': {'child': intro_content_id}}),
-        ComponentNode(
-            id=intro_content_id,
-            component={
-                'Column': {
-                    'children': {'explicitList': [title_id]},
-                    'alignment': 'stretch',
-                    'distribution': 'start',
-                }
-            },
-        ),
-        ComponentNode(id=title_id, component={'Text': {'text': {'path': '/title'}, 'usageHint': 'h1'}}),
-    ]
-    data_entries = [DataMapEntry(key='title', valueString=delta.title)]
-
-    if delta.summary:
-      summary_id = self._helper_id(intro_card_id, 'summary')
-      components.append(
-          ComponentNode(id=summary_id, component={'Text': {'text': {'path': '/summary'}, 'usageHint': 'body'}})
-      )
-      components[4] = ComponentNode(
-          id=intro_content_id,
-          component={
-              'Column': {
-                  'children': {'explicitList': [title_id, summary_id]},
-                  'alignment': 'stretch',
-                  'distribution': 'start',
-              }
-          },
-      )
-      data_entries.append(DataMapEntry(key='summary', valueString=delta.summary))
-
-    self.containers[self.root_id].child_ids = root_children
-    self.containers[frame_card_id] = ContainerState(component_id=frame_content_id, container_type='Column')
-    self.containers[frame_card_id].child_ids = [intro_card_id]
-    self.containers[intro_card_id] = ContainerState(component_id=intro_content_id, container_type='Column')
-    self.containers[intro_card_id].child_ids = [title_id] + ([summary_id] if delta.summary else [])
     self.auto_sections = {}
-    self.page_parent_id = frame_card_id
+    self.page_parent_id = self.root_id
+
+    root_component = ComponentNode(
+        id=self.root_id,
+        component={
+            'Row': {
+                'children': {'explicitList': []},
+                'alignment': 'stretch',
+                'distribution': 'start',
+            }
+        },
+    )
 
     begin = A2UIFrame(
         beginRendering={
@@ -290,7 +235,7 @@ class FrameCompiler:
         }
     )
     logger.debug('Compiled beginRendering frame=%s', begin.model_dump(exclude_none=True))
-    return [begin, self._surface_update(components), self._data_update('/', data_entries)]
+    return [begin, self._surface_update([root_component])]
 
   def _add_section(self, delta: AddSectionDelta) -> list[A2UIFrame]:
     actual_parent_id = self.page_parent_id if delta.parent_id == self.root_id else delta.parent_id
@@ -623,7 +568,7 @@ class FrameCompiler:
     divider = ComponentNode(id=divider_id, component={'Divider': {'axis': 'horizontal'}})
     return prefix_frames + [self._surface_update([parent_update, divider])]
 
-  def _append_list_item(self, delta: AppendListItemDelta) -> list[A2UIFrame]:
+  def _add_list_item(self, delta: AddListItemDelta) -> list[A2UIFrame]:
     prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'list', '列表内容')
     parent = self._ensure_container(parent_id)
     item_index = self.list_item_counts.get(parent.component_id, 0) + 1
