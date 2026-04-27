@@ -4,8 +4,8 @@ import json
 from dataclasses import dataclass
 from typing import Literal
 
-from ..compiler import FrameCompiler
-from ..models import (
+from compiler import FrameCompiler
+from models import (
     A2UIFrame,
     AddKeyValueDelta,
     AddSectionDelta,
@@ -16,7 +16,7 @@ from ..models import (
     TableColumnSpec,
     UpdateTableSpecDelta,
 )
-from .models import (
+from streaming.models import (
     AppendFactsEvent,
     AddListItemsEvent,
     AppendTableRowsEvent,

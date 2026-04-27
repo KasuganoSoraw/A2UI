@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import pytest
 
-from ..models import (
+from models import (
     AddRegionActionDelta,
     AddRegionDelta,
     AddRegionFactDelta,
@@ -16,7 +16,7 @@ from ..models import (
     AddRegionListItemDelta,
     SKELETON_DELTA_ADAPTER,
 )
-from ..skeleton_compiler import SkeletonCompiler
+from skeleton_compiler import SkeletonCompiler
 
 
 def _slot_component_ids(frames: list[object]) -> set[str]:

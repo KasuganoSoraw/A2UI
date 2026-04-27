@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+import os
+import sys
+
 import uvicorn
 
-from .app import app
-from .settings import settings
+CURRENT_DIR = os.path.dirname(__file__)
+if CURRENT_DIR not in sys.path:
+  sys.path.insert(0, CURRENT_DIR)
+
+from app import app
+from settings import settings
 
 
 def main() -> None:

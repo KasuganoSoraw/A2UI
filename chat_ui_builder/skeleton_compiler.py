@@ -5,8 +5,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Callable
 
-from .compiler import FrameCompiler
-from .models import (
+from compiler import FrameCompiler
+from models import (
     A2UIFrame,
     AddButtonDelta,
     AddDividerDelta,
@@ -35,7 +35,7 @@ from .models import (
     InitPlanDelta,
     InitSurfaceDelta,
 )
-from .region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
+from region_archetypes import ArrangementSemantics, RegionArchetypeRegistry, RegionBuildContext
 
 logger = logging.getLogger(__name__)
 

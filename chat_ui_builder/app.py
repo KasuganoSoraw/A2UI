@@ -9,10 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, model_validator
 
-from .logging_utils import configure_logging
-from .service import ChatUIService
-from .settings import settings
-from .streaming.runtime import StreamingRuntime
+from logging_utils import configure_logging
+from service import ChatUIService
+from settings import settings
+from streaming.runtime import StreamingRuntime
 
 configure_logging(getattr(logging, settings.log_level, logging.INFO))
 logger = logging.getLogger(__name__)

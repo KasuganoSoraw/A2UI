@@ -7,9 +7,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .json_extractor import JsonExtractionResult, JsonExtractor
-from .service import StreamingPromptService
-from .stream_compiler import StreamCompiler
+from streaming.json_extractor import JsonExtractionResult, JsonExtractor
+from streaming.service import StreamingPromptService
+from streaming.stream_compiler import StreamCompiler
 
 logger = logging.getLogger(__name__)
 
