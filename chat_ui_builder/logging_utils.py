@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 
@@ -90,7 +91,12 @@ def build_console_handler(log_level: int) -> logging.Handler:
 
 
 def build_file_handler(log_path: Path, log_level: int) -> logging.Handler:
-  file_handler = logging.FileHandler(log_path, mode='a', encoding='utf-8')
+  file_handler = RotatingFileHandler(
+      log_path,
+      maxBytes=2 * 1024 * 1024,
+      backupCount=3,
+      encoding='utf-8',
+  )
   file_handler.setLevel(log_level)
   file_handler.setFormatter(
       PlainFileFormatter(
