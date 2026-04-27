@@ -3,9 +3,9 @@
 ## 需求详情
 - 先将本地工程同步到远程分支 `KasuganoSoraw/A2UI` 的 `codex/remove-intentplan-and-legacy-fallback-logic-dxojnz` 当前状态。
 - 在此基准上，仅对用户点名的 3 个文件做定点变更：
-  1. `samples/agent/adk/chat_ui_builder/models.py`
-  2. `samples/agent/adk/chat_ui_builder/app.py`
-  3. `samples/agent/adk/chat_ui_builder/prompting.py`
+  1. `chat_ui_builder/models.py`
+  2. `chat_ui_builder/app.py`
+  3. `chat_ui_builder/prompting.py`
 
 ## 澄清结果
 - `models.py` 只检查 `AddRegionTextDelta` 是否与目标定义一致；若一致则不改。

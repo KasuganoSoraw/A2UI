@@ -1,7 +1,7 @@
 # Chat UI Builder 单列布局收敛设计
 
 ## 需求详情
-将 `samples/agent/adk/chat_ui_builder` 的布局编译逻辑彻底收敛为单列结构：移除双栏 scaffold、侧栏 bucket 与对应语义分支，保留 planning delta 主路径，确保所有 region 在单一主内容流中稳定纵向展示。同时强化 flow diagram 的“重组件独占 region”规则，避免与普通文本/事实/动作混排拥挤。
+将 `chat_ui_builder` 的布局编译逻辑彻底收敛为单列结构：移除双栏 scaffold、侧栏 bucket 与对应语义分支，保留 planning delta 主路径，确保所有 region 在单一主内容流中稳定纵向展示。同时强化 flow diagram 的“重组件独占 region”规则，避免与普通文本/事实/动作混排拥挤。
 
 ## 澄清结果
 - 不是通过开关隐藏双栏逻辑，而是删除相关生成分支。

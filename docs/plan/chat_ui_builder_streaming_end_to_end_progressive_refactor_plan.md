@@ -29,7 +29,7 @@
 
 ## Stage 4：校验与记录
 ### Task 4.1 语法检查
-- `python -m py_compile samples/agent/adk/chat_ui_builder/streaming/service.py samples/agent/adk/chat_ui_builder/streaming/runtime.py samples/agent/adk/chat_ui_builder/app.py`
+- `python -m py_compile chat_ui_builder/streaming/service.py chat_ui_builder/streaming/runtime.py chat_ui_builder/app.py`
 
 ### Task 4.2 进度与提交
 - 追加 `progress.md`

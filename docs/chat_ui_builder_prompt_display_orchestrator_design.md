@@ -1,7 +1,7 @@
 # Chat UI Builder Prompt 展示编排定位重构设计
 
 ## 需求详情
-- 仅在 `samples/agent/adk/chat_ui_builder/prompting.py` 内重写 `SYSTEM_PROMPT`。
+- 仅在 `chat_ui_builder/prompting.py` 内重写 `SYSTEM_PROMPT`。
 - 将 prompt 主定位从“协议+raw/evidence 保留倾向”调整为“通用展示编排器”。
 - 保留现有 planning delta contract、usage_hint、timeline 变体与 FlowDiagram 通用规则能力。
 
