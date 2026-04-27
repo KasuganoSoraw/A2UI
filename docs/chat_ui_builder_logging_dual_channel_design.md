@@ -1,7 +1,7 @@
 # chat_ui_builder 日志系统改造设计（控制台彩色分类 + 文件完整追加）
 
 ## 需求详情
-当前 `samples/agent/adk/chat_ui_builder` 通过 `app.py` 的 `logging.basicConfig` 进行统一初始化，控制台日志单一格式输出，且关键链路日志在人眼辨识和问题追溯方面均不足。
+当前 `chat_ui_builder` 通过 `app.py` 的 `logging.basicConfig` 进行统一初始化，控制台日志单一格式输出，且关键链路日志在人眼辨识和问题追溯方面均不足。
 
 本次需求要求将日志系统拆分为两条并行通道：
 - 控制台：实时、彩色分类、便于快速观察阶段流转。
@@ -9,7 +9,7 @@
 
 ## 澄清结果
 - 仅整理日志系统，不改 A2UI/planning/skeleton 编译业务语义。
-- 文件日志目录固定为 `samples/agent/adk/chat_ui_builder/logs`，文件名固定 `chat_ui_builder.log`。
+- 文件日志目录固定为 `chat_ui_builder/logs`，文件名固定 `chat_ui_builder.log`。
 - 颜色分类按“消息内容特征”实现，不仅按 level。
 - 需要避免重复挂载 handler（重载、多次 import 场景）。
 - 在不大规模改造业务日志调用前提下，尽量改善长 payload 日志在文件中被截断的问题。

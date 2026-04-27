@@ -4,8 +4,8 @@
 在不改变现有模块行为和页面效果的前提下，收敛 `ArrangementSemantics` 的抽象复杂度。
 
 范围仅限：
-- `samples/agent/adk/chat_ui_builder/skeleton_compiler.py`
-- `samples/agent/adk/chat_ui_builder/region_archetypes.py`
+- `chat_ui_builder/skeleton_compiler.py`
+- `chat_ui_builder/region_archetypes.py`
 
 ## 澄清结果
 1. 保持外部调用链不变：`_arrangement_for -> RegionBuildContext.arrangement -> builder`。

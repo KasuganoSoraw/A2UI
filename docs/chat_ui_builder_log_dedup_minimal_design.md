@@ -26,7 +26,7 @@
 - 保持文件日志干净且聚焦，提升排查效率。
 
 ## HOW（如何做）
-- 仅修改 `samples/agent/adk/chat_ui_builder/service.py`：
+- 仅修改 `chat_ui_builder/service.py`：
   - `_compile_planning_records()` 中不再打印 parsed/emitting 两类重复日志。
   - 移除不再使用的 full_message 日志拼装辅助函数。
 - 不修改 `logging_utils.py` 配置逻辑，确保 console/file 行为不回退。

@@ -52,3 +52,4 @@
 - 2026-04-20 任务：chat_ui_builder 非流式主线移除后端 loading 预制帧；service 删除 _loading_frames 与启动即发帧逻辑，FrameCompiler._init_surface 收敛为仅初始化 root surface（beginRendering + root Column），并同步更新单路径服务测试断言以适配“由 init_plan 驱动页面生长”。
 - 2026-04-20 任务：chat_ui_builder 日志系统改造为“控制台彩色分类 + 文件完整追加落盘”；新增 logging_utils 统一初始化 root console/file handler（防重复挂载），日志落盘至 logs/chat_ui_builder.log，并为 Streaming frame/Parsed planning delta/Emitting planning A2UI frame 注入 full_message 以提升文件日志完整度。
 - 2026-04-20 任务：chat_ui_builder 主链日志最小去重；删除 service 层 Parsed planning delta 与 Emitting planning A2UI frame 两类重复日志，保留 skeleton_compiler/ compiler / app 分层日志链路，且不改动日志初始化与文件落盘机制。
+- 2026-04-27 任务：清理 chat_ui_builder 旧路径残留；确认旧 agent 目录已不存在，批量替换仓库内旧目录指向为 chat_ui_builder 新路径，并补充本次清理设计与开发计划文档。

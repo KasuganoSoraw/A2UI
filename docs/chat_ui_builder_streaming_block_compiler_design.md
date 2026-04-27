@@ -1,7 +1,7 @@
 # chat_ui_builder streaming block 编译链路设计
 
 ## 需求详情
-在 `samples/agent/adk/chat_ui_builder/` 下新增一条**独立于 non-streaming SkeletonCompiler** 的 streaming 编译链路最小实现。
+在 `chat_ui_builder/` 下新增一条**独立于 non-streaming SkeletonCompiler** 的 streaming 编译链路最小实现。
 本次只交付：
 - `streaming/models.py`
 - `streaming/stream_compiler.py`

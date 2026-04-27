@@ -16,7 +16,7 @@
 
 ## Stage 3：校验与记录
 ### Task 3.1 语法检查
-- `python -m py_compile samples/agent/adk/chat_ui_builder/streaming/service.py samples/agent/adk/chat_ui_builder/streaming/runtime.py`
+- `python -m py_compile chat_ui_builder/streaming/service.py chat_ui_builder/streaming/runtime.py`
 
 ### Task 3.2 进度与提交
 - 追加 `progress.md`

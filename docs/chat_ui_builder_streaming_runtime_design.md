@@ -1,7 +1,7 @@
 # chat_ui_builder streaming runtime 设计文档
 
 ## 需求详情
-在 `samples/agent/adk/chat_ui_builder/streaming/runtime.py` 新增一个独立的 runtime 层，专门负责 session 级串行调度与调用时机控制。
+在 `chat_ui_builder/streaming/runtime.py` 新增一个独立的 runtime 层，专门负责 session 级串行调度与调用时机控制。
 
 该层只负责：
 1. 按 `session_id` 维护会话状态。

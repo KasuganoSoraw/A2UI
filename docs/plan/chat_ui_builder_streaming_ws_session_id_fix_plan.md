@@ -14,7 +14,7 @@
 
 ## Stage 2：校验与记录
 ### Task 2.1 最小语法检查
-- 运行 `python -m py_compile samples/agent/adk/chat_ui_builder/app.py`。
+- 运行 `python -m py_compile chat_ui_builder/app.py`。
 
 ### Task 2.2 进度与提交
 - 追加写入 `progress.md`。
