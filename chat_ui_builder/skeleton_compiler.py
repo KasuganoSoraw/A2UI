@@ -21,12 +21,14 @@ from models import (
     AddRegionInputDelta,
     AddRegionLineChartDelta,
     AddRegionMermaidDelta,
+    AddRegionTopologyDelta,
     AddRegionPieChartDelta,
     AddRegionTableDelta,
     AddRegionTextDelta,
     AddLineChartDelta,
     AddMermaidDelta,
     AddPieChartDelta,
+    AddTopologyDelta,
     AddTableDelta,
     AddTextDelta,
     AddListItemDelta,
@@ -301,6 +303,24 @@ class ContentHandler:
 
     return self.router.apply_to_region(delta.region_id, diagram_slot, build)
 
+  def handle_topology(self, delta: AddRegionTopologyDelta) -> list[A2UIFrame]:
+    topology_spec = {
+        'title': delta.title,
+        'objects': delta.objects,
+        'edges': delta.edges,
+    }
+    topology_spec_json = json.dumps(topology_spec, ensure_ascii=False)
+
+    def build(parent_id: str) -> object:
+      return AddTopologyDelta(
+          event='add_topology',
+          id=delta.id,
+          parent_id=parent_id,
+          spec_json=topology_spec_json,
+      )
+
+    return self.router.apply_to_region(delta.region_id, 'flow', build)
+
   def handle_fact(self, delta: AddRegionFactDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
       return AddKeyValueDelta(
@@ -402,6 +422,7 @@ class SkeletonCompiler:
         AddRegionLineChartDelta: lambda delta: self.content_handler.handle_line_chart(delta),
         AddRegionPieChartDelta: lambda delta: self.content_handler.handle_pie_chart(delta),
         AddRegionMermaidDelta: lambda delta: self.content_handler.handle_mermaid(delta),
+        AddRegionTopologyDelta: lambda delta: self.content_handler.handle_topology(delta),
         AddRegionFactDelta: lambda delta: self.content_handler.handle_fact(delta),
         AddRegionImageDelta: lambda delta: self.content_handler.handle_image(delta),
         AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),

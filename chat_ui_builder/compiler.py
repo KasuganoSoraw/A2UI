@@ -17,6 +17,7 @@ from models import (
     AddPieChartDelta,
     AddSectionDelta,
     AddTableDelta,
+    AddTopologyDelta,
     AddTextDelta,
     UpdateTableSpecDelta,
     AddListItemDelta,
@@ -77,6 +78,8 @@ class FrameCompiler:
       return self._add_pie_chart(delta)
     if isinstance(delta, AddMermaidDelta):
       return self._add_mermaid(delta)
+    if isinstance(delta, AddTopologyDelta):
+      return self._add_topology(delta)
     if isinstance(delta, AddListItemDelta):
       return self._add_list_item(delta)
     return []
@@ -492,6 +495,23 @@ class FrameCompiler:
     return prefix_frames + [
         self._surface_update([parent_update, diagram_component]),
         self._data_update(f'/content/{diagram_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+    ]
+
+  def _add_topology(self, delta: AddTopologyDelta) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', '拓扑图')
+    parent = self._ensure_container(parent_id)
+    topology_id = self._register_id(delta.id)
+    if topology_id == parent.component_id:
+      raise ValueError(f'Topology id {topology_id} cannot equal parent id {parent.component_id}')
+    self._append_child(parent_id, topology_id)
+    parent_update = self._container_component(parent)
+    topology_component = ComponentNode(
+        id=topology_id,
+        component={'TopologyGraph': {'spec': {'path': f'/content/{topology_id}/spec'}}},
+    )
+    return prefix_frames + [
+        self._surface_update([parent_update, topology_component]),
+        self._data_update(f'/content/{topology_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
     ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:

@@ -100,6 +100,14 @@ PLANNING_DELTA_CONTRACT = [
         'chart_data': 'list of {data: list of {value:number,name:string,selected?}, radius?: string}',
     },
     {
+        'event': 'add_region_topology',
+        'id': 'string',
+        'region_id': 'string',
+        'title': 'optional string',
+        'objects': 'list of {id, standardName, viewGroup}',
+        'edges': 'list of {bizSemanticRel:(relatedto|affect), srcVid, dstVid, function:{description}}',
+    },
+    {
         'event': 'add_region_mermaid',
         'id': 'string',
         'region_id': 'string',
@@ -148,7 +156,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是展
 - 同一批数据只能保留一种主展示；其他区域只能补充不同语义层的信息，不能逐项复述。
 
 重组件选择总规则：
-- 重组件包括：`add_region_table`、`add_region_line_chart`、`add_region_pie_chart`、`add_region_mermaid`
+- 重组件包括：`add_region_table`、`add_region_line_chart`、`add_region_pie_chart`、`add_region_mermaid`、`add_region_topology`
 - 对同一批数据，只能选择其中一个重组件
 - 不要把同一批数据先做成摘要，再在 details 中用另一种重组件逐项重放
 
@@ -161,7 +169,8 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是展
 主阅读目标与重组件映射：
 - 时间顺序 / 事件演化为主：优先 `list`，必要时 `presentation.variant="timeline"`，不要再补 table
 - 流程、状态流转、决策分支、调用链路为主：优先 `add_region_mermaid`
-- Mermaid `flowchart` / `sequenceDiagram` / `stateDiagram-v2` 用于流程与拓扑/时序/状态表达
+- 拓扑关系、对象关联图、因果传播图、知识网络图为主：必须使用 `add_region_topology`
+- Mermaid `flowchart` / `sequenceDiagram` / `stateDiagram-v2` 用于流程与时序/状态表达
 - 数值随时间或类别变化趋势为主：优先 `add_region_line_chart`
 - 占比、构成、份额分布为主：优先 `add_region_pie_chart`
 - 多字段逐行对比确实是主要目标，且其他重组件都不适合时，才使用 `add_region_table`
@@ -180,13 +189,22 @@ table 使用限制：
 
 Mermaid 使用限制：
 1. `add_region_mermaid` 是重组件，不是新的 role。
-2. Mermaid 只用于当前原生组件不适合表达的关系/结构图。
-3. 拓扑图与拓扑关系必须使用Mermaid的flowchart进行展示，严禁使用list等其他方式展示
+2. Mermaid 只用于当前原生组件不适合表达的流程图、时序图、状态图、结构图。
+3. 拓扑图与拓扑关系必须使用 `add_region_topology`，不得使用 `add_region_mermaid` 代替。
 4. role 限制：
    - `flowchart` / `sequenceDiagram` / `stateDiagram-v2` 只允许放在 `workflow` 或 `details`
    - `erDiagram` / `classDiagram` 只允许放在 `details` 或 `supporting`
 5. 不要在 `hero`、`summary`、`list` 中使用 `add_region_mermaid`。
 6. add_region_mermaid 的 definition 必须输出为单行 JSON 字符串，所有换行必须写成 \n，不能直接输出原始换行。
+
+Topology 使用限制：
+1. 拓扑图、对象关联图、因果传播图、知识网络图必须使用 `add_region_topology`。
+2. `objects` 仅允许输出 `{id, standardName, viewGroup}`。
+3. `edges` 仅允许输出 `{bizSemanticRel, srcVid, dstVid, function:{description}}`。
+4. `bizSemanticRel` 只允许 `relatedto` 或 `affect`。
+5. `function` 只允许 `description` 一个字段。
+6. `srcVid` / `dstVid` 必须引用已在 `objects.id` 中出现的节点。
+7. 不要输出任何额外的 topology 子模型名或分层定义。
 
 页面组织规则：
 1. 先输出 `add_region` 建立骨架，再向各 `region_id` 填充内容。

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, RootModel, TypeAdapter, ConfigDict
+from pydantic import BaseModel, Field, RootModel, TypeAdapter, ConfigDict, model_validator
 
 
 class Theme(BaseModel):
@@ -168,6 +168,34 @@ class AddRegionMermaidDelta(BaseModel):
   definition: str
 
 
+class AddRegionTopologyDelta(BaseModel):
+  event: Literal["add_region_topology"]
+  id: str
+  region_id: str
+  title: str | None = None
+  objects: list[dict[str, str]]
+  edges: list[dict[str, object]]
+
+  @model_validator(mode='after')
+  def validate_topology(self) -> "AddRegionTopologyDelta":
+    object_ids = {item.get('id') for item in self.objects if item.get('id')}
+    for edge in self.edges:
+      if edge.get('bizSemanticRel') not in {'relatedto', 'affect'}:
+        raise ValueError('bizSemanticRel must be relatedto or affect')
+      src_vid = edge.get('srcVid')
+      dst_vid = edge.get('dstVid')
+      if not isinstance(src_vid, str) or src_vid not in object_ids:
+        raise ValueError('srcVid must reference objects.id')
+      if not isinstance(dst_vid, str) or dst_vid not in object_ids:
+        raise ValueError('dstVid must reference objects.id')
+      function_value = edge.get('function')
+      if not isinstance(function_value, dict):
+        raise ValueError('function must be an object with only description')
+      if set(function_value.keys()) != {'description'}:
+        raise ValueError('function only allows description')
+    return self
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -268,6 +296,13 @@ class AddMermaidDelta(BaseModel):
   spec_json: str
 
 
+class AddTopologyDelta(BaseModel):
+  event: Literal["add_topology"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -326,6 +361,7 @@ SkeletonDelta = Annotated[
     | AddRegionLineChartDelta
     | AddRegionPieChartDelta
     | AddRegionMermaidDelta
+    | AddRegionTopologyDelta
     | FinalizeDelta,
     Field(discriminator="event"),
 ]
@@ -345,6 +381,7 @@ Delta = Annotated[
     | AddLineChartDelta
     | AddPieChartDelta
     | AddMermaidDelta
+    | AddTopologyDelta
     | AddInputDelta
     | AddDividerDelta
     | AddListItemDelta
