@@ -150,8 +150,8 @@ class RegionArchetypeBuilder:
         'action_primary': region_id,
         'action_secondary': region_id,
         'input': region_id,
-        'list_item': region_id,
-        'flow': region_id,
+        'list_item': content_parent,
+        'flow': content_parent,
     }
 
 
