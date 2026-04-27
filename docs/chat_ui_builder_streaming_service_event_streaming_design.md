@@ -1,7 +1,7 @@
 # chat_ui_builder streaming service 第二阶段流式化设计
 
 ## 需求详情
-在现有 `samples/agent/adk/chat_ui_builder/streaming/service.py` 原地演进：
+在现有 `chat_ui_builder/streaming/service.py` 原地演进：
 - 第一阶段保持一次性 binding 判别。
 - 第二阶段改为 stream=True，按 NDJSON event 流式解析。
 - 实现边收 chunk、边解析 event、边编译 frame、边向上游产出。

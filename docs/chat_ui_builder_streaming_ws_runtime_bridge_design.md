@@ -1,7 +1,7 @@
 # chat_ui_builder streaming ws runtime 接入设计文档
 
 ## 需求详情
-在 `samples/agent/adk/chat_ui_builder/app.py` 新增最小可用 WebSocket 接口：`/api/chat/ws/stream`。
+在 `chat_ui_builder/app.py` 新增最小可用 WebSocket 接口：`/api/chat/ws/stream`。
 
 目标：将现有 `StreamingRuntime` 接入 app 作为前后端联调入口。
 

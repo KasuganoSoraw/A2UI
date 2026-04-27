@@ -1,7 +1,7 @@
 # chat_ui_builder streaming ws session_id 定向修复设计
 
 ## 需求详情
-定向修改 `samples/agent/adk/chat_ui_builder/app.py` 中 `/api/chat/ws/stream` 的 `session_id` 获取逻辑。
+定向修改 `chat_ui_builder/app.py` 中 `/api/chat/ws/stream` 的 `session_id` 获取逻辑。
 
 现状问题：当前强依赖 query 参数 `session_id`，缺失则立即报错并断开，导致当前前端无法联调。
 

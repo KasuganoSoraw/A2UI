@@ -1,7 +1,7 @@
 # chat_ui_builder 非流式加载页移除与 FrameCompiler 初始化收敛设计
 
 ## 需求详情
-本次需求要求 `samples/agent/adk/chat_ui_builder` 完成两项架构收敛：
+本次需求要求 `chat_ui_builder` 完成两项架构收敛：
 1. `ChatUIService` 不再在模型首个 planning delta 到来前预制 loading 页面。
 2. `FrameCompiler._init_surface` 从“叙事化页面预制”收敛为“最小 surface 初始化”。
 

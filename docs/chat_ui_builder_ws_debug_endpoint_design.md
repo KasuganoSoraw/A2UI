@@ -1,7 +1,7 @@
 # chat_ui_builder WebSocket 调试接口最小改动设计
 
 ## 需求详情
-- 仅在后端 `samples/agent/adk/chat_ui_builder/app.py` 增加 `/ws/debug` WebSocket 接口。
+- 仅在后端 `chat_ui_builder/app.py` 增加 `/ws/debug` WebSocket 接口。
 - 用于前端联调通路验证：接收前端消息并写日志。
 - 不接入 A2UI 业务流，不改现有 HTTP 路由、请求模型和 service 流程。
 

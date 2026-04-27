@@ -1,7 +1,7 @@
 # chat_ui_builder streaming json_extractor 设计
 
 ## 需求详情
-新增 `samples/agent/adk/chat_ui_builder/streaming/json_extractor.py`，只负责第一阶段输入准备：
+新增 `chat_ui_builder/streaming/json_extractor.py`，只负责第一阶段输入准备：
 - 从前端累计 JSON 文本中提取当前可见且结构完整的 `visible_snapshot`
 - 基于上一轮 snapshot 计算 `changes`
 - 返回可直接喂给第一阶段 prompt 的工程化结果

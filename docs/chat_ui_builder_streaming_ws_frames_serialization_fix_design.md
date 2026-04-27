@@ -1,7 +1,7 @@
 # chat_ui_builder streaming ws frames 序列化修复设计
 
 ## 需求详情
-定向修复 `samples/agent/adk/chat_ui_builder/app.py` 中 `/api/chat/ws/stream` 的成功回包序列化问题。
+定向修复 `chat_ui_builder/app.py` 中 `/api/chat/ws/stream` 的成功回包序列化问题。
 
 当前问题：`frames` 中元素可能是 `A2UIFrame` 对象，直接放入 `websocket.send_json(...)` 会触发
 `TypeError: Object of type A2UIFrame is not JSON serializable`。

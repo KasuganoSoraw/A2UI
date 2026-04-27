@@ -15,7 +15,7 @@
 
 ## Stage 3：校验与记录
 ### Task 3.1 语法检查
-- `python -m py_compile samples/agent/adk/chat_ui_builder/streaming/prompt/binding_prompt.py samples/agent/adk/chat_ui_builder/streaming/prompt/stream_event_prompt.py`
+- `python -m py_compile chat_ui_builder/streaming/prompt/binding_prompt.py chat_ui_builder/streaming/prompt/stream_event_prompt.py`
 
 ### Task 3.2 进度与提交
 - 追加 `progress.md`

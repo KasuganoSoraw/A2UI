@@ -1,7 +1,7 @@
 # chat_ui_builder SkeletonCompiler handler registry 重构设计
 
 ## 需求详情
-对 `samples/agent/adk/chat_ui_builder/skeleton_compiler.py` 进行最小不破坏重构：
+对 `chat_ui_builder/skeleton_compiler.py` 进行最小不破坏重构：
 - 将 `apply()` 从大 if/elif 改为 handler registry。
 - 拆分 Plan/Region/Content 职责。
 - 抽离 region 路由与 pending 逻辑到 Router。

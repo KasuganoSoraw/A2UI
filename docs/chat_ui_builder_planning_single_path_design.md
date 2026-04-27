@@ -1,7 +1,7 @@
 # Chat UI Builder 单路径收敛设计（Planning Delta Only）
 
 ## 需求详情
-本次仅针对 `samples/agent/adk/chat_ui_builder` demo 做收敛改造：删除 IntentPlan fallback 与 legacy line-by-line fallback，保留并强化 planning delta 主链，确保前端继续逐帧渐进式渲染。
+本次仅针对 `chat_ui_builder` demo 做收敛改造：删除 IntentPlan fallback 与 legacy line-by-line fallback，保留并强化 planning delta 主链，确保前端继续逐帧渐进式渲染。
 
 ## 澄清结果
 - 不做 feature flag，不做“隐藏 fallback”。
