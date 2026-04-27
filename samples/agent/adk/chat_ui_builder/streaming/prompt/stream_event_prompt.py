@@ -40,8 +40,8 @@ append_facts
 create_list_block
 {"event":"create_list_block","block_id":"string","dataset_id":"string","title":"optional string","items":[{"item_id":"string","title":"string","detail":"optional string","title_usage_hint":"optional h1|h2|h3|body|caption|warning","detail_usage_hint":"optional h1|h2|h3|body|caption|warning"}]}
 
-append_list_items
-{"event":"append_list_items","block_id":"string","items":[{"item_id":"string","title":"string","detail":"optional string","title_usage_hint":"optional h1|h2|h3|body|caption|warning","detail_usage_hint":"optional h1|h2|h3|body|caption|warning"}]}
+add_list_items
+{"event":"add_list_items","block_id":"string","items":[{"item_id":"string","title":"string","detail":"optional string","title_usage_hint":"optional h1|h2|h3|body|caption|warning","detail_usage_hint":"optional h1|h2|h3|body|caption|warning"}]}
 
 create_table_block
 {"event":"create_table_block","block_id":"string","dataset_id":"string","title":"optional string","columns":[{"key":"string","label":"string","width":"optional string","align":"optional left|center|right","ellipsis":"optional boolean"}],"rows":[{}]}

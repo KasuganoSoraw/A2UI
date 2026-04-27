@@ -39,13 +39,14 @@ class RegionArchetypeBuilder:
   def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
     raise NotImplementedError
 
-  def _create_region_root(self, context: RegionBuildContext, emit: EmitLowLevel, *, layout: str = 'Column') -> list[A2UIFrame]:
+  def _create_region_root(self, context: RegionBuildContext, emit: EmitLowLevel, *, layout: str = 'Column', appearance='region_in_root') -> list[A2UIFrame]:
     return emit(
         AddSectionDelta(
             event='add_section',
             id=context.delta.id,
             parent_id=context.slot_parent,
             layout=layout,
+            appearance=appearance,
         )
     )
 
@@ -149,8 +150,8 @@ class RegionArchetypeBuilder:
         'action_primary': region_id,
         'action_secondary': region_id,
         'input': region_id,
-        'list_item': region_id,
-        'flow': region_id,
+        'list_item': content_parent,
+        'flow': content_parent,
     }
 
 
@@ -238,6 +239,7 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
             parent_id=region_id,
             layout='Row' if context.arrangement.facts_layout == 'row' else 'Column',
             order=30,
+            appearance='detail_fact',
         )
     )
     frames.extend(
@@ -343,7 +345,21 @@ class SupportingArchetypeBuilder(RegionArchetypeBuilder):
     frames = self._create_region_root(context, emit)
     header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
     frames.extend(header_body_frames)
+
+    code_id = f'{region_id}_code'
+    frames.extend(
+        self._create_section(
+            emit,
+            section_id=code_id,
+            parent_id=region_id,
+            layout='Column',
+            order=40,
+            appearance='code_block',
+        )
+    )
+
     slot_parents = self._default_slot_parents(region_id, content_parent)
+    slot_parents['code'] = code_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 

@@ -4,19 +4,17 @@ import json
 import logging
 from uuid import uuid4
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, model_validator
 
+from logging_utils import configure_logging
 from service import ChatUIService
 from settings import settings
 from streaming.runtime import StreamingRuntime
 
-logging.basicConfig(
-    level=getattr(logging, settings.log_level, logging.INFO),
-    format='%(asctime)s %(levelname)s %(name)s %(message)s',
-)
+configure_logging(getattr(logging, settings.log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 
@@ -181,7 +179,7 @@ async def chat_stream_ws(websocket: WebSocket) -> None:
 
 
 @app.post('/api/chat/stream')
-async def chat_stream(payload: ChatRequest) -> StreamingResponse:
+async def chat_stream(payload: ChatRequest, model: str | None = Query(default=None)) -> StreamingResponse:
   request_id = uuid4().hex[:8]
   logger.info(
       '[%s] Incoming chat request user_query=%s source_data=%s',
@@ -196,9 +194,15 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
         source_data=payload.source_data,
         user_query=payload.user_query,
         request_id=request_id,
+        model_name=model,
     ):
       body = frame.model_dump_json(exclude_none=True)
-      logger.info('[%s] Streaming frame body=%s', request_id, body[: settings.max_log_chars])
+      logger.info(
+          '[%s] Streaming frame body=%s',
+          request_id,
+          body[: settings.max_log_chars],
+          extra={'full_message': f'[{request_id}] Streaming frame body={body}'},
+      )
       yield body + '\n'
 
   return StreamingResponse(frame_stream(), media_type='application/x-ndjson')
