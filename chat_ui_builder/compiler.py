@@ -418,22 +418,45 @@ class FrameCompiler:
         self._data_update(f'/content/{button_id}', [DataMapEntry(key='label', valueString=delta.label)]),
     ]
 
-  def _add_table(self, delta: AddTableDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'details', '结构化数据')
+  def _add_spec_component(
+      self,
+      *,
+      requested_id: str,
+      parent_id: str,
+      component_name: str,
+      spec_json: str,
+      bucket: str,
+      fallback_title: str,
+  ) -> list[A2UIFrame]:
+    prefix_frames, parent_id = self._wrap_root_primitive(parent_id, bucket, fallback_title)
+
     parent = self._ensure_container(parent_id)
-    table_id = self._register_id(delta.id)
-    if table_id == parent.component_id:
-      raise ValueError(f'Table id {table_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, table_id)
+    component_id = self._register_id(requested_id)
+    if component_id == parent.component_id:
+      raise ValueError(f'{component_name} id {component_id} cannot equal parent id {parent.component_id}')
+
+    self._append_child(parent_id, component_id)
+
     parent_update = self._container_component(parent)
-    table_component = ComponentNode(
-        id=table_id,
-        component={'Table': {'spec': {'path': f'/content/{table_id}/spec'}}},
+    spec_component = ComponentNode(
+        id=component_id,
+        component={component_name: {'spec': {'path': f'/content/{component_id}/spec'}}},
     )
+
     return prefix_frames + [
-        self._surface_update([parent_update, table_component]),
-        self._data_update(f'/content/{table_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
+        self._surface_update([parent_update, spec_component]),
+        self._data_update(f'/content/{component_id}', [DataMapEntry(key='spec', valueString=spec_json)]),
     ]
+
+  def _add_table(self, delta: AddTableDelta) -> list[A2UIFrame]:
+    return self._add_spec_component(
+        requested_id=delta.id,
+        parent_id=delta.parent_id,
+        component_name='Table',
+        spec_json=delta.spec_json,
+        bucket='details',
+        fallback_title='结构化数据',
+    )
 
   def _update_table_spec(self, delta: UpdateTableSpecDelta) -> list[A2UIFrame]:
     # 该路径只做“更新已有 table 的数据模型”，不创建新组件、不改父容器 children。
@@ -447,72 +470,44 @@ class FrameCompiler:
     ]
 
   def _add_line_chart(self, delta: AddLineChartDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'insights', '趋势图')
-    parent = self._ensure_container(parent_id)
-    chart_id = self._register_id(delta.id)
-    if chart_id == parent.component_id:
-      raise ValueError(f'Line chart id {chart_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, chart_id)
-    parent_update = self._container_component(parent)
-    chart_component = ComponentNode(
-        id=chart_id,
-        component={'LineChart': {'spec': {'path': f'/content/{chart_id}/spec'}}},
+    return self._add_spec_component(
+        requested_id=delta.id,
+        parent_id=delta.parent_id,
+        component_name='LineChart',
+        spec_json=delta.spec_json,
+        bucket='insights',
+        fallback_title='趋势图',
     )
-    return prefix_frames + [
-        self._surface_update([parent_update, chart_component]),
-        self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
-    ]
 
   def _add_pie_chart(self, delta: AddPieChartDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'insights', '占比图')
-    parent = self._ensure_container(parent_id)
-    chart_id = self._register_id(delta.id)
-    if chart_id == parent.component_id:
-      raise ValueError(f'Pie chart id {chart_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, chart_id)
-    parent_update = self._container_component(parent)
-    chart_component = ComponentNode(
-        id=chart_id,
-        component={'PieChart': {'spec': {'path': f'/content/{chart_id}/spec'}}},
+    return self._add_spec_component(
+        requested_id=delta.id,
+        parent_id=delta.parent_id,
+        component_name='PieChart',
+        spec_json=delta.spec_json,
+        bucket='insights',
+        fallback_title='占比图',
     )
-    return prefix_frames + [
-        self._surface_update([parent_update, chart_component]),
-        self._data_update(f'/content/{chart_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
-    ]
 
   def _add_mermaid(self, delta: AddMermaidDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', 'Mermaid 图')
-    parent = self._ensure_container(parent_id)
-    diagram_id = self._register_id(delta.id)
-    if diagram_id == parent.component_id:
-      raise ValueError(f'Mermaid id {diagram_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, diagram_id)
-    parent_update = self._container_component(parent)
-    diagram_component = ComponentNode(
-        id=diagram_id,
-        component={'Mermaid': {'spec': {'path': f'/content/{diagram_id}/spec'}}},
+    return self._add_spec_component(
+        requested_id=delta.id,
+        parent_id=delta.parent_id,
+        component_name='Mermaid',
+        spec_json=delta.spec_json,
+        bucket='diagram',
+        fallback_title='Mermaid 图',
     )
-    return prefix_frames + [
-        self._surface_update([parent_update, diagram_component]),
-        self._data_update(f'/content/{diagram_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
-    ]
 
   def _add_topology(self, delta: AddTopologyDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'diagram', '拓扑图')
-    parent = self._ensure_container(parent_id)
-    topology_id = self._register_id(delta.id)
-    if topology_id == parent.component_id:
-      raise ValueError(f'Topology id {topology_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, topology_id)
-    parent_update = self._container_component(parent)
-    topology_component = ComponentNode(
-        id=topology_id,
-        component={'TopologyGraph': {'spec': {'path': f'/content/{topology_id}/spec'}}},
+    return self._add_spec_component(
+        requested_id=delta.id,
+        parent_id=delta.parent_id,
+        component_name='TopologyGraph',
+        spec_json=delta.spec_json,
+        bucket='diagram',
+        fallback_title='拓扑图',
     )
-    return prefix_frames + [
-        self._surface_update([parent_update, topology_component]),
-        self._data_update(f'/content/{topology_id}', [DataMapEntry(key='spec', valueString=delta.spec_json)]),
-    ]
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:
     prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'form', '待填写信息')
