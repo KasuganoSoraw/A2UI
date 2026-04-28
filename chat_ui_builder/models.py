@@ -168,6 +168,15 @@ class AddRegionMermaidDelta(BaseModel):
   definition: str
 
 
+class AddRegionTopologyDelta(BaseModel):
+  event: Literal["add_region_topology"]
+  id: str
+  region_id: str
+  title: str | None = None
+  objects: list[dict[str, str]]
+  edges: list[dict[str, object]]
+
+
 class InitSurfaceDelta(BaseModel):
   event: Literal["init_surface"]
   surface_id: str = "main"
@@ -268,6 +277,13 @@ class AddMermaidDelta(BaseModel):
   spec_json: str
 
 
+class AddTopologyDelta(BaseModel):
+  event: Literal["add_topology"]
+  id: str
+  parent_id: str
+  spec_json: str
+
+
 class ChoiceOption(BaseModel):
   label: str
   value: str
@@ -326,6 +342,7 @@ SkeletonDelta = Annotated[
     | AddRegionLineChartDelta
     | AddRegionPieChartDelta
     | AddRegionMermaidDelta
+    | AddRegionTopologyDelta
     | FinalizeDelta,
     Field(discriminator="event"),
 ]
@@ -345,6 +362,7 @@ Delta = Annotated[
     | AddLineChartDelta
     | AddPieChartDelta
     | AddMermaidDelta
+    | AddTopologyDelta
     | AddInputDelta
     | AddDividerDelta
     | AddListItemDelta
