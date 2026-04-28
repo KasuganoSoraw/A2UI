@@ -46,7 +46,6 @@ class FrameCompiler:
     self.list_item_counts: dict[str, int] = {}
     self.used_ids: set[str] = set()
     self.aliases: dict[str, str] = {}
-    self.auto_sections: dict[str, str] = {}
     self.page_parent_id = self.root_id
     self.local_child_order: dict[tuple[str, str], int] = {}
 
@@ -136,31 +135,6 @@ class FrameCompiler:
         key=lambda existing_id: self.local_child_order.get((canonical_parent_id, existing_id), 10_000)
     )
 
-  def _ensure_auto_section(self, bucket: str, title: str) -> list[A2UIFrame]:
-    existing = self.auto_sections.get(bucket)
-    if existing and existing in self.containers:
-      return []
-
-    section_id = f'auto_{bucket}_card'
-    frames = self._add_section(
-        AddSectionDelta(
-            event='add_section',
-            id=section_id,
-            parent_id=self.page_parent_id,
-            layout='Card',
-            title=title,
-        )
-    )
-    self.auto_sections[bucket] = section_id
-    return frames
-
-  def _wrap_root_primitive(self, parent_id: str, bucket: str, title: str) -> tuple[list[A2UIFrame], str]:
-    if parent_id != self.root_id:
-      return [], parent_id
-
-    prefix_frames = self._ensure_auto_section(bucket, title)
-    return prefix_frames, self.auto_sections[bucket]
-
   def _surface_update(self, components: list[ComponentNode]) -> A2UIFrame:
     frame = A2UIFrame(surfaceUpdate={'surfaceId': self.surface_id, 'components': components})
     logger.debug('Compiled surfaceUpdate frame=%s', frame.model_dump(exclude_none=True))
@@ -216,7 +190,6 @@ class FrameCompiler:
     self.used_ids = {self.root_id}
     self.aliases = {self.root_id: self.root_id}
     self.local_child_order = {}
-    self.auto_sections = {}
     self.page_parent_id = self.root_id
 
     root_component = ComponentNode(
@@ -327,7 +300,7 @@ class FrameCompiler:
     return [self._surface_update([parent_component] + components)] + emitted_data
 
   def _add_text(self, delta: AddTextDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'overview', '关键信息')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     text_id = self._register_id(delta.id)
     if text_id == parent.component_id:
@@ -338,13 +311,13 @@ class FrameCompiler:
         id=text_id,
         component={'Text': {'text': {'path': f'/content/{text_id}/text'}, 'usageHint': delta.usage_hint}},
     )
-    return prefix_frames + [
+    return [
         self._surface_update([parent_update, text_component]),
         self._data_update(f'/content/{text_id}', [DataMapEntry(key='text', valueString=delta.text)]),
     ]
 
   def _add_key_value(self, delta: AddKeyValueDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'overview', '关键信息')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     group_id = self._register_id(delta.id)
     if group_id == parent.component_id:
@@ -365,7 +338,7 @@ class FrameCompiler:
     )
     label = ComponentNode(id=label_id, component={'Text': {'text': {'path': f'/content/{group_id}/label'}, 'usageHint': 'caption'}})
     value = ComponentNode(id=value_id, component={'Text': {'text': {'path': f'/content/{group_id}/value'}, 'usageHint': 'body'}})
-    return prefix_frames + [
+    return [
         self._surface_update([parent_update, group, label, value]),
         self._data_update(
             f'/content/{group_id}',
@@ -377,7 +350,7 @@ class FrameCompiler:
     ]
 
   def _add_image(self, delta: AddImageDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'overview', '关键信息')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     image_id = self._register_id(delta.id)
     if image_id == parent.component_id:
@@ -388,13 +361,13 @@ class FrameCompiler:
     if delta.usage_hint:
       image_props['usageHint'] = delta.usage_hint
     image = ComponentNode(id=image_id, component={'Image': image_props})
-    return prefix_frames + [
+    return [
         self._surface_update([parent_update, image]),
         self._data_update(f'/content/{image_id}', [DataMapEntry(key='url', valueString=delta.url)]),
     ]
 
   def _add_button(self, delta: AddButtonDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'actions', '可执行操作')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     button_id = self._register_id(delta.id)
     if button_id == parent.component_id:
@@ -413,7 +386,7 @@ class FrameCompiler:
         },
     )
     label = ComponentNode(id=text_id, component={'Text': {'text': {'path': f'/content/{button_id}/label'}, 'usageHint': 'body'}})
-    return prefix_frames + [
+    return [
         self._surface_update([parent_update, button, label]),
         self._data_update(f'/content/{button_id}', [DataMapEntry(key='label', valueString=delta.label)]),
     ]
@@ -425,11 +398,7 @@ class FrameCompiler:
       parent_id: str,
       component_name: str,
       spec_json: str,
-      bucket: str,
-      fallback_title: str,
   ) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(parent_id, bucket, fallback_title)
-
     parent = self._ensure_container(parent_id)
     component_id = self._register_id(requested_id)
     if component_id == parent.component_id:
@@ -443,7 +412,7 @@ class FrameCompiler:
         component={component_name: {'spec': {'path': f'/content/{component_id}/spec'}}},
     )
 
-    return prefix_frames + [
+    return [
         self._surface_update([parent_update, spec_component]),
         self._data_update(f'/content/{component_id}', [DataMapEntry(key='spec', valueString=spec_json)]),
     ]
@@ -454,8 +423,6 @@ class FrameCompiler:
         parent_id=delta.parent_id,
         component_name='Table',
         spec_json=delta.spec_json,
-        bucket='details',
-        fallback_title='结构化数据',
     )
 
   def _update_table_spec(self, delta: UpdateTableSpecDelta) -> list[A2UIFrame]:
@@ -475,8 +442,6 @@ class FrameCompiler:
         parent_id=delta.parent_id,
         component_name='LineChart',
         spec_json=delta.spec_json,
-        bucket='insights',
-        fallback_title='趋势图',
     )
 
   def _add_pie_chart(self, delta: AddPieChartDelta) -> list[A2UIFrame]:
@@ -485,8 +450,6 @@ class FrameCompiler:
         parent_id=delta.parent_id,
         component_name='PieChart',
         spec_json=delta.spec_json,
-        bucket='insights',
-        fallback_title='占比图',
     )
 
   def _add_mermaid(self, delta: AddMermaidDelta) -> list[A2UIFrame]:
@@ -495,8 +458,6 @@ class FrameCompiler:
         parent_id=delta.parent_id,
         component_name='Mermaid',
         spec_json=delta.spec_json,
-        bucket='diagram',
-        fallback_title='Mermaid 图',
     )
 
   def _add_topology(self, delta: AddTopologyDelta) -> list[A2UIFrame]:
@@ -505,12 +466,10 @@ class FrameCompiler:
         parent_id=delta.parent_id,
         component_name='TopologyGraph',
         spec_json=delta.spec_json,
-        bucket='diagram',
-        fallback_title='拓扑图',
     )
 
   def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'form', '待填写信息')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     input_id = self._register_id(delta.id)
     if input_id == parent.component_id:
@@ -561,7 +520,7 @@ class FrameCompiler:
         payload = DataMapEntry(key=delta.path.split('/')[-1], valueString=str(delta.value))
 
     component = ComponentNode(id=input_id, component={delta.component: props})
-    frames = prefix_frames + [self._surface_update([parent_update, component])]
+    frames = [self._surface_update([parent_update, component])]
     if payload:
       parent_path, leaf = delta.path.rsplit('/', 1)
       frames.append(
@@ -573,7 +532,7 @@ class FrameCompiler:
     return frames
 
   def _add_divider(self, delta: AddDividerDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'overview', '关键信息')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     divider_id = self._register_id(delta.id)
     if divider_id == parent.component_id:
@@ -581,10 +540,10 @@ class FrameCompiler:
     self._append_child(parent_id, divider_id)
     parent_update = self._container_component(parent)
     divider = ComponentNode(id=divider_id, component={'Divider': {'axis': 'horizontal'}})
-    return prefix_frames + [self._surface_update([parent_update, divider])]
+    return [self._surface_update([parent_update, divider])]
 
   def _add_list_item(self, delta: AddListItemDelta) -> list[A2UIFrame]:
-    prefix_frames, parent_id = self._wrap_root_primitive(delta.parent_id, 'list', '列表内容')
+    parent_id = delta.parent_id
     parent = self._ensure_container(parent_id)
     item_index = self.list_item_counts.get(parent.component_id, 0) + 1
     self.list_item_counts[parent.component_id] = item_index
@@ -658,7 +617,7 @@ class FrameCompiler:
           )
       )
       contents.append(DataMapEntry(key='detail', valueString=delta.detail))
-    return prefix_frames + [
+    return [
         self._surface_update(components),
         self._data_update(f'/lists/{parent.component_id}/{item_prefix}', contents),
     ]
