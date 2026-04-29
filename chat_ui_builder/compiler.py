@@ -212,79 +212,37 @@ class FrameCompiler:
 
     components: list[ComponentNode] = []
     emitted_data: list[A2UIFrame] = []
-
-    if delta.layout == 'Card':
-      content_id = self._helper_id(section_id, 'content')
-      self._append_child(actual_parent_id, section_id, delta.order)
-      self.containers[section_id] = ContainerState(component_id=content_id, container_type='Column')
-      components.append(ComponentNode(id=section_id, component={'Card': {'child': content_id}}))
-      explicit_children: list[str] = []
-      if delta.title:
-        title_id = self._helper_id(section_id, 'title')
-        explicit_children.append(title_id)
-        components.append(
-            ComponentNode(
-                id=title_id,
-                component={'Text': {'text': {'path': f'/sections/{section_id}/title'}, 'usageHint': 'h2'}},
-            )
-        )
-        emitted_data.append(self._data_update(f'/sections/{section_id}', [DataMapEntry(key='title', valueString=delta.title)]))
-      if delta.description:
-        desc_id = self._helper_id(section_id, 'description')
-        explicit_children.append(desc_id)
-        components.append(
-            ComponentNode(
-                id=desc_id,
-                component={'Text': {'text': {'path': f'/sections/{section_id}/description'}, 'usageHint': 'body'}},
-            )
-        )
-        emitted_data.append(
-            self._data_update(f'/sections/{section_id}', [DataMapEntry(key='description', valueString=delta.description)])
-        )
+    self._append_child(actual_parent_id, section_id, delta.order)
+    self.containers[section_id] = ContainerState(
+        component_id=section_id,
+        container_type=delta.layout,
+        appearance=delta.appearance,
+    )
+    explicit_children: list[str] = []
+    if delta.title:
+      title_id = self._helper_id(section_id, 'title')
+      explicit_children.append(title_id)
       components.append(
           ComponentNode(
-              id=content_id,
-              component={
-                  'Column': {
-                      'children': {'explicitList': explicit_children},
-                      'alignment': 'stretch',
-                      'distribution': 'start',
-                  }
-              },
+              id=title_id,
+              component={'Text': {'text': {'path': f'/sections/{section_id}/title'}, 'usageHint': 'h2'}},
           )
       )
-    else:
-      self._append_child(actual_parent_id, section_id, delta.order)
-      self.containers[section_id] = ContainerState(
-          component_id=section_id,
-          container_type=delta.layout,
-          appearance=delta.appearance,
+      emitted_data.append(self._data_update(f'/sections/{section_id}', [DataMapEntry(key='title', valueString=delta.title)]))
+    if delta.description:
+      desc_id = self._helper_id(section_id, 'description')
+      explicit_children.append(desc_id)
+      components.append(
+          ComponentNode(
+              id=desc_id,
+              component={'Text': {'text': {'path': f'/sections/{section_id}/description'}, 'usageHint': 'body'}},
+          )
       )
-      explicit_children: list[str] = []
-      if delta.title:
-        title_id = self._helper_id(section_id, 'title')
-        explicit_children.append(title_id)
-        components.append(
-            ComponentNode(
-                id=title_id,
-                component={'Text': {'text': {'path': f'/sections/{section_id}/title'}, 'usageHint': 'h2'}},
-            )
-        )
-        emitted_data.append(self._data_update(f'/sections/{section_id}', [DataMapEntry(key='title', valueString=delta.title)]))
-      if delta.description:
-        desc_id = self._helper_id(section_id, 'description')
-        explicit_children.append(desc_id)
-        components.append(
-            ComponentNode(
-                id=desc_id,
-                component={'Text': {'text': {'path': f'/sections/{section_id}/description'}, 'usageHint': 'body'}},
-            )
-        )
-        emitted_data.append(
-            self._data_update(f'/sections/{section_id}', [DataMapEntry(key='description', valueString=delta.description)])
-        )
-      self.containers[section_id].child_ids = explicit_children
-      components.append(self._container_component(self.containers[section_id]))
+      emitted_data.append(
+          self._data_update(f'/sections/{section_id}', [DataMapEntry(key='description', valueString=delta.description)])
+      )
+    self.containers[section_id].child_ids = explicit_children
+    components.append(self._container_component(self.containers[section_id]))
 
     parent_component = self._container_component(parent)
     return [self._surface_update([parent_component] + components)] + emitted_data

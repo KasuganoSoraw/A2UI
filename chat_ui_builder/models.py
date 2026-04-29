@@ -189,7 +189,7 @@ class AddSectionDelta(BaseModel):
   event: Literal["add_section"]
   id: str
   parent_id: str
-  layout: Literal["Card", "Column", "Row", "List", "Timeline"]
+  layout: Literal["Column", "Row", "List", "Timeline"]
   title: str | None = None
   description: str | None = None
   order: int | None = None
