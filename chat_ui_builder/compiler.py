@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from models import (
     A2UIFrame,
@@ -48,40 +48,30 @@ class FrameCompiler:
     self.aliases: dict[str, str] = {}
     self.page_parent_id = self.root_id
     self.local_child_order: dict[tuple[str, str], int] = {}
+    self.handlers: dict[type, Callable[[Any], list[A2UIFrame]]] = {
+        InitSurfaceDelta: self._init_surface,
+        AddSectionDelta: self._add_section,
+        AddTextDelta: self._add_text,
+        AddKeyValueDelta: self._add_key_value,
+        AddImageDelta: self._add_image,
+        AddButtonDelta: self._add_button,
+        AddInputDelta: self._add_input,
+        AddDividerDelta: self._add_divider,
+        AddTableDelta: self._add_table,
+        UpdateTableSpecDelta: self._update_table_spec,
+        AddLineChartDelta: self._add_line_chart,
+        AddPieChartDelta: self._add_pie_chart,
+        AddMermaidDelta: self._add_mermaid,
+        AddTopologyDelta: self._add_topology,
+        AddListItemDelta: self._add_list_item,
+    }
 
   def apply(self, delta: Any) -> list[A2UIFrame]:
     logger.info('Compiling delta type=%s payload=%s', type(delta).__name__, delta.model_dump())
-    if isinstance(delta, InitSurfaceDelta):
-      return self._init_surface(delta)
-    if isinstance(delta, AddSectionDelta):
-      return self._add_section(delta)
-    if isinstance(delta, AddTextDelta):
-      return self._add_text(delta)
-    if isinstance(delta, AddKeyValueDelta):
-      return self._add_key_value(delta)
-    if isinstance(delta, AddImageDelta):
-      return self._add_image(delta)
-    if isinstance(delta, AddButtonDelta):
-      return self._add_button(delta)
-    if isinstance(delta, AddInputDelta):
-      return self._add_input(delta)
-    if isinstance(delta, AddDividerDelta):
-      return self._add_divider(delta)
-    if isinstance(delta, AddTableDelta):
-      return self._add_table(delta)
-    if isinstance(delta, UpdateTableSpecDelta):
-      return self._update_table_spec(delta)
-    if isinstance(delta, AddLineChartDelta):
-      return self._add_line_chart(delta)
-    if isinstance(delta, AddPieChartDelta):
-      return self._add_pie_chart(delta)
-    if isinstance(delta, AddMermaidDelta):
-      return self._add_mermaid(delta)
-    if isinstance(delta, AddTopologyDelta):
-      return self._add_topology(delta)
-    if isinstance(delta, AddListItemDelta):
-      return self._add_list_item(delta)
-    return []
+    handler = self.handlers.get(type(delta))
+    if handler is None:
+      return []
+    return handler(delta)
 
   def _resolve_parent_id(self, parent_id: str) -> str:
     return self.aliases.get(parent_id, parent_id)
