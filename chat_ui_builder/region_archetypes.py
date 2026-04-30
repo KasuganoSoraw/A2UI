@@ -101,21 +101,21 @@ class RegionArchetypeBuilder:
           )
         )
 
-      if include_body_slot:
-        body_layout = 'Column' if context.arrangement.body_layout == 'column' else 'Row'
-        body_id = f'{region_id}_body'
-        frames.extend(
-            emit(
-                AddSectionDelta(
-                    event='add_section',
-                    id=body_id,
-                    parent_id=region_id,
-                    layout=body_layout,
-                    order=20,
-                )
-            )
-        )
-        content_parent = body_id
+    if include_body_slot:
+      body_layout = 'Column' if context.arrangement.body_layout == 'column' else 'Row'
+      body_id = f'{region_id}_body'
+      frames.extend(
+          emit(
+              AddSectionDelta(
+                  event='add_section',
+                  id=body_id,
+                  parent_id=region_id,
+                  layout=body_layout,
+                  order=20,
+              )
+          )
+      )
+      content_parent = body_id
 
     return frames, content_parent
 

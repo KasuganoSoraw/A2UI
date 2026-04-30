@@ -208,42 +208,16 @@ class FrameCompiler:
     if section_id == parent.component_id:
       raise ValueError(f'Section id {section_id} cannot equal parent id {parent.component_id}')
 
-    components: list[ComponentNode] = []
-    emitted_data: list[A2UIFrame] = []
     self._append_child(actual_parent_id, section_id, delta.order)
     self.containers[section_id] = ContainerState(
         component_id=section_id,
         container_type=delta.layout,
         appearance=delta.appearance,
     )
-    explicit_children: list[str] = []
-    if delta.title:
-      title_id = self._helper_id(section_id, 'title')
-      explicit_children.append(title_id)
-      components.append(
-          ComponentNode(
-              id=title_id,
-              component={'Text': {'text': {'path': f'/sections/{section_id}/title'}, 'usageHint': 'h2'}},
-          )
-      )
-      emitted_data.append(self._data_update(f'/sections/{section_id}', [DataMapEntry(key='title', valueString=delta.title)]))
-    if delta.description:
-      desc_id = self._helper_id(section_id, 'description')
-      explicit_children.append(desc_id)
-      components.append(
-          ComponentNode(
-              id=desc_id,
-              component={'Text': {'text': {'path': f'/sections/{section_id}/description'}, 'usageHint': 'body'}},
-          )
-      )
-      emitted_data.append(
-          self._data_update(f'/sections/{section_id}', [DataMapEntry(key='description', valueString=delta.description)])
-      )
-    self.containers[section_id].child_ids = explicit_children
-    components.append(self._container_component(self.containers[section_id]))
 
     parent_component = self._container_component(parent)
-    return [self._surface_update([parent_component] + components)] + emitted_data
+    section_component = self._container_component(self.containers[section_id])
+    return [self._surface_update([parent_component, section_component])]
 
   def _add_text(self, delta: AddTextDelta) -> list[A2UIFrame]:
     parent_id = delta.parent_id

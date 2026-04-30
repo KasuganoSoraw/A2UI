@@ -174,8 +174,6 @@ class AddSectionDelta(BaseModel):
   id: str
   parent_id: str
   layout: Literal["Column", "Row", "List", "Timeline"]
-  title: str | None = None
-  description: str | None = None
   order: int | None = None
   appearance: str | None = None
 
