@@ -149,7 +149,6 @@ class RegionArchetypeBuilder:
         'fact': region_id,
         'action_primary': region_id,
         'action_secondary': region_id,
-        'input': region_id,
         'list_item': content_parent,
         'flow': content_parent,
     }
@@ -410,9 +409,7 @@ class FormArchetypeBuilder(RegionArchetypeBuilder):
     header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
     frames.extend(header_body_frames)
 
-    inputs_id = f'{region_id}_inputs'
     actions_id = f'{region_id}_actions'
-    frames.extend(self._create_section(emit, section_id=inputs_id, parent_id=region_id, layout='Column', order=30))
     frames.extend(
         self._create_section(
             emit,
@@ -424,7 +421,6 @@ class FormArchetypeBuilder(RegionArchetypeBuilder):
     )
 
     slot_parents = self._default_slot_parents(region_id, content_parent)
-    slot_parents['input'] = inputs_id
     slot_parents['action_primary'] = actions_id
     slot_parents['action_secondary'] = actions_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
