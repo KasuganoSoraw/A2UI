@@ -68,22 +68,6 @@ class AddRegionActionDelta(BaseModel):
   primary: bool = False
 
 
-class AddRegionInputDelta(BaseModel):
-  event: Literal["add_region_input"]
-  id: str
-  region_id: str
-  component: Literal["TextField", "CheckBox", "Slider", "MultipleChoice", "DateTimeInput"]
-  label: str
-  path: str
-  value: str | bool | float | int | list[str] | None = None
-  text_field_type: Literal["shortText", "longText", "number", "date", "obscured"] | None = None
-  min_value: float | None = None
-  max_value: float | None = None
-  options: list["ChoiceOption"] | None = None
-  enable_date: bool | None = None
-  enable_time: bool | None = None
-
-
 class AddRegionDividerDelta(BaseModel):
   event: Literal["add_region_divider"]
   id: str
@@ -229,20 +213,6 @@ class AddButtonDelta(BaseModel):
   primary: bool = False
 
 
-class FlowDiagramNode(BaseModel):
-  id: str
-  label: str
-  column: int
-  lane: int = 0
-  kind: Literal["start", "process", "decision", "end"] = "process"
-
-
-class FlowDiagramEdge(BaseModel):
-  from_id: str
-  to_id: str
-  label: str | None = None
-
-
 class AddTableDelta(BaseModel):
   event: Literal["add_table"]
   id: str
@@ -284,30 +254,6 @@ class AddTopologyDelta(BaseModel):
   spec_json: str
 
 
-class ChoiceOption(BaseModel):
-  label: str
-  value: str
-
-
-AddRegionInputDelta.model_rebuild()
-
-
-class AddInputDelta(BaseModel):
-  event: Literal["add_input"]
-  id: str
-  parent_id: str
-  component: Literal["TextField", "CheckBox", "Slider", "MultipleChoice", "DateTimeInput"]
-  label: str
-  path: str
-  value: str | bool | float | int | list[str] | None = None
-  text_field_type: Literal["shortText", "longText", "number", "date", "obscured"] | None = None
-  min_value: float | None = None
-  max_value: float | None = None
-  options: list[ChoiceOption] | None = None
-  enable_date: bool | None = None
-  enable_time: bool | None = None
-
-
 class AddDividerDelta(BaseModel):
   event: Literal["add_divider"]
   id: str
@@ -335,7 +281,6 @@ SkeletonDelta = Annotated[
     | AddRegionFactDelta
     | AddRegionImageDelta
     | AddRegionActionDelta
-    | AddRegionInputDelta
     | AddRegionDividerDelta
     | AddRegionListItemDelta
     | AddRegionTableDelta
@@ -363,7 +308,6 @@ Delta = Annotated[
     | AddPieChartDelta
     | AddMermaidDelta
     | AddTopologyDelta
-    | AddInputDelta
     | AddDividerDelta
     | AddListItemDelta
     | FinalizeDelta,

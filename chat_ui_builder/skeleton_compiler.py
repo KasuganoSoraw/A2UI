@@ -11,14 +11,12 @@ from models import (
     AddButtonDelta,
     AddDividerDelta,
     AddImageDelta,
-    AddInputDelta,
     AddKeyValueDelta,
     AddRegionActionDelta,
     AddRegionDelta,
     AddRegionDividerDelta,
     AddRegionFactDelta,
     AddRegionImageDelta,
-    AddRegionInputDelta,
     AddRegionLineChartDelta,
     AddRegionMermaidDelta,
     AddRegionTopologyDelta,
@@ -360,26 +358,6 @@ class ContentHandler:
 
     return self.router.apply_to_region(delta.region_id, slot_name, build)
 
-  def handle_input(self, delta: AddRegionInputDelta) -> list[A2UIFrame]:
-    def build(parent_id: str) -> object:
-      return AddInputDelta(
-          event='add_input',
-          id=delta.id,
-          parent_id=parent_id,
-          component=delta.component,
-          label=delta.label,
-          path=delta.path,
-          value=delta.value,
-          text_field_type=delta.text_field_type,
-          min_value=delta.min_value,
-          max_value=delta.max_value,
-          options=delta.options,
-          enable_date=delta.enable_date,
-          enable_time=delta.enable_time,
-      )
-
-    return self.router.apply_to_region(delta.region_id, 'input', build)
-
   def handle_divider(self, delta: AddRegionDividerDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
       return AddDividerDelta(
@@ -426,7 +404,6 @@ class SkeletonCompiler:
         AddRegionFactDelta: lambda delta: self.content_handler.handle_fact(delta),
         AddRegionImageDelta: lambda delta: self.content_handler.handle_image(delta),
         AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),
-        AddRegionInputDelta: lambda delta: self.content_handler.handle_input(delta),
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
         AddRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
     }

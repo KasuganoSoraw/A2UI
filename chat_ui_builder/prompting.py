@@ -47,15 +47,6 @@ PLANNING_DELTA_CONTRACT = [
         'primary': 'boolean, optional',
     },
     {
-        'event': 'add_region_input',
-        'id': 'string',
-        'region_id': 'string',
-        'component': 'TextField | CheckBox | Slider | MultipleChoice | DateTimeInput',
-        'label': 'string',
-        'path': 'absolute JSON pointer path',
-        'value': 'optional string | boolean | number | array',
-    },
-    {
         'event': 'add_region_list_item',
         'id': 'string',
         'region_id': 'string',

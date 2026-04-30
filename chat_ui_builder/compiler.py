@@ -10,7 +10,6 @@ from models import (
     AddButtonDelta,
     AddDividerDelta,
     AddImageDelta,
-    AddInputDelta,
     AddKeyValueDelta,
     AddLineChartDelta,
     AddMermaidDelta,
@@ -55,7 +54,6 @@ class FrameCompiler:
         AddKeyValueDelta: self._add_key_value,
         AddImageDelta: self._add_image,
         AddButtonDelta: self._add_button,
-        AddInputDelta: self._add_input,
         AddDividerDelta: self._add_divider,
         AddTableDelta: self._add_table,
         UpdateTableSpecDelta: self._update_table_spec,
@@ -415,69 +413,6 @@ class FrameCompiler:
         component_name='TopologyGraph',
         spec_json=delta.spec_json,
     )
-
-  def _add_input(self, delta: AddInputDelta) -> list[A2UIFrame]:
-    parent_id = delta.parent_id
-    parent = self._ensure_container(parent_id)
-    input_id = self._register_id(delta.id)
-    if input_id == parent.component_id:
-      raise ValueError(f'Input id {input_id} cannot equal parent id {parent.component_id}')
-    self._append_child(parent_id, input_id)
-    parent_update = self._container_component(parent)
-    props: dict[str, Any] = {'label': {'literalString': delta.label}}
-    payload: DataMapEntry | None = None
-
-    if delta.component == 'TextField':
-      props['text'] = {'path': delta.path}
-      if delta.text_field_type:
-        props['textFieldType'] = delta.text_field_type
-      if delta.value is not None:
-        payload = DataMapEntry(key=delta.path.split('/')[-1], valueString=str(delta.value))
-    elif delta.component == 'CheckBox':
-      props['value'] = {'path': delta.path}
-      if delta.value is not None:
-        payload = DataMapEntry(key=delta.path.split('/')[-1], valueBoolean=bool(delta.value))
-    elif delta.component == 'Slider':
-      props['value'] = {'path': delta.path}
-      if delta.min_value is not None:
-        props['minValue'] = delta.min_value
-      if delta.max_value is not None:
-        props['maxValue'] = delta.max_value
-      if delta.value is not None:
-        payload = DataMapEntry(key=delta.path.split('/')[-1], valueNumber=float(delta.value))
-    elif delta.component == 'MultipleChoice':
-      props['selections'] = {'path': delta.path}
-      props['options'] = [
-          {'label': {'literalString': option.label}, 'value': option.value}
-          for option in (delta.options or [])
-      ]
-      if delta.value is not None:
-        values = [str(v) for v in (delta.value if isinstance(delta.value, list) else [delta.value])]
-        payload = DataMapEntry(
-            key=delta.path.split('/')[-1],
-            valueMap=[DataMapEntry(key=str(i), valueString=value) for i, value in enumerate(values)],
-        )
-    elif delta.component == 'DateTimeInput':
-      props = {
-          'label': {'literalString': delta.label},
-          'value': {'path': delta.path},
-          'enableDate': bool(delta.enable_date if delta.enable_date is not None else True),
-          'enableTime': bool(delta.enable_time if delta.enable_time is not None else True),
-      }
-      if delta.value is not None:
-        payload = DataMapEntry(key=delta.path.split('/')[-1], valueString=str(delta.value))
-
-    component = ComponentNode(id=input_id, component={delta.component: props})
-    frames = [self._surface_update([parent_update, component])]
-    if payload:
-      parent_path, leaf = delta.path.rsplit('/', 1)
-      frames.append(
-          self._data_update(
-              parent_path or '/',
-              [DataMapEntry(key=leaf, **payload.model_dump(exclude_none=True, exclude={'key'}))],
-          )
-      )
-    return frames
 
   def _add_divider(self, delta: AddDividerDelta) -> list[A2UIFrame]:
     parent_id = delta.parent_id
