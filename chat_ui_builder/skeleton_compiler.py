@@ -62,9 +62,6 @@ class SkeletonRuntime:
   frame_compiler: FrameCompiler = field(default_factory=FrameCompiler)
   archetypes: RegionArchetypeRegistry = field(default_factory=RegionArchetypeRegistry)
   initialized: bool = False
-  layout_hint: str = 'single_column'
-  page_kind: str = 'overview'
-  emphasis: str = 'balanced'
   regions: dict[str, RegionBinding] = field(default_factory=dict)
   pending_region_deltas: dict[str, list[PendingRegionDelta]] = field(default_factory=dict)
   page_title: str = ''
@@ -115,9 +112,6 @@ class RegionHandler:
     context = RegionBuildContext(
         slot_parent='root',
         delta=delta,
-        page_kind=self.runtime.page_kind,
-        emphasis=self.runtime.emphasis,
-        layout_hint=self.runtime.layout_hint,
         arrangement=self._arrangement_for(delta),
         presentation_variant=delta.presentation.variant if delta.presentation else 'standard',
     )
@@ -154,9 +148,6 @@ class PlanHandler:
 
   def handle_init(self, delta: InitPlanDelta) -> list[A2UIFrame]:
     self.runtime.initialized = True
-    self.runtime.layout_hint = 'single_column'
-    self.runtime.page_kind = delta.page_kind
-    self.runtime.emphasis = delta.emphasis
     self.runtime.regions = {}
     self.runtime.pending_region_deltas = {}
     self.runtime.page_title = delta.title
@@ -170,10 +161,7 @@ class PlanHandler:
             theme=delta.theme,
         )
     )
-    logger.info(
-        'Initialized layout scaffold=%s',
-        self.runtime.layout_hint,
-    )
+    logger.info('Initialized display surface')
     return frames
 
   def handle_finalize(self, _: FinalizeDelta) -> list[A2UIFrame]:

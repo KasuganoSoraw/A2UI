@@ -31,9 +31,7 @@ def _slot_component_ids(frames: list[object]) -> set[str]:
 
 def test_summary_region_uses_compact_fact_strip_slots() -> None:
   compiler = SkeletonCompiler()
-  compiler.apply(
-      InitPlanDelta(event='init_plan', title='Summary page', page_kind='dashboard', emphasis='analytics-first')
-  )
+  compiler.apply(InitPlanDelta(event='init_plan', title='Summary page'))
   frames = compiler.apply(
       AddRegionDelta(
           event='add_region',

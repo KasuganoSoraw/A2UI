@@ -48,8 +48,6 @@ def test_stream_frames_uses_planning_delta_path(monkeypatch) -> None:
           'surface_id': 'main',
           'title': '审批中心',
           'summary': '待办审批概览',
-          'page_kind': 'detail',
-          'emphasis': 'content-first',
       },
       {'event': 'add_region', 'id': 'hero_region', 'role': 'hero', 'title': '重点提醒'},
       {

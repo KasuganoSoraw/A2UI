@@ -19,9 +19,6 @@ class InitPlanDelta(BaseModel):
   surface_id: str = "main"
   title: str
   summary: str | None = None
-  page_kind: Literal["overview", "dashboard", "detail", "workflow"] = "overview"
-  emphasis: Literal["balanced", "analytics-first", "content-first"] = "balanced"
-  layout_hint: Literal["auto", "single_column", "two_column", "hero_plus_two_column", "hero_plus_action_panel"] = "auto"
   theme: Theme | None = None
 
 

@@ -18,9 +18,6 @@ class ArrangementSemantics:
 class RegionBuildContext:
   slot_parent: str
   delta: AddRegionDelta
-  page_kind: str
-  emphasis: str
-  layout_hint: str
   arrangement: ArrangementSemantics
   presentation_variant: str = 'standard'
 

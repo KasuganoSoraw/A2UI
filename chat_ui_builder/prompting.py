@@ -8,9 +8,6 @@ PLANNING_DELTA_CONTRACT = [
         'surface_id': 'string, optional, default main',
         'title': 'string',
         'summary': 'optional string',
-        'page_kind': 'overview | dashboard | detail | workflow',
-        'emphasis': 'balanced | analytics-first | content-first',
-        'layout_hint': 'auto | single_column',
         'theme': {'primaryColor': 'optional #RRGGBB string', 'font': 'optional string'},
     },
     {
