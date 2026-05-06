@@ -8,7 +8,7 @@ from typing import Any
 from litellm import acompletion
 
 from compiler import FrameCompiler
-from models import A2UIFrame, AddRegionActionDelta, AddRegionDelta, AddTextDelta, InitSurfaceDelta
+from models import A2UIFrame, AddRegionDelta, AddTextDelta, InitSurfaceDelta
 from planning_stream import PlanningDeltaRecord, PlanningDeltaStreamParser
 from prompting import build_messages
 from skeleton_compiler import SkeletonCompiler
@@ -160,8 +160,6 @@ class ChatUIService:
     return frames
 
   def _is_action_event(self, delta: object) -> bool:
-    if isinstance(delta, AddRegionActionDelta):
-      return True
     if isinstance(delta, AddRegionDelta) and delta.role == 'actions':
       return True
     return False

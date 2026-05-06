@@ -7,7 +7,6 @@ from typing import Any, Callable
 
 from models import (
     A2UIFrame,
-    AddButtonDelta,
     AddDividerDelta,
     AddImageDelta,
     AddKeyValueDelta,
@@ -53,7 +52,6 @@ class FrameCompiler:
         AddTextDelta: self._add_text,
         AddKeyValueDelta: self._add_key_value,
         AddImageDelta: self._add_image,
-        AddButtonDelta: self._add_button,
         AddDividerDelta: self._add_divider,
         AddTableDelta: self._add_table,
         UpdateTableSpecDelta: self._update_table_spec,
@@ -284,31 +282,6 @@ class FrameCompiler:
     return [
         self._surface_update([parent_update, image]),
         self._data_update(f'/content/{image_id}', [DataMapEntry(key='url', valueString=delta.url)]),
-    ]
-
-  def _add_button(self, delta: AddButtonDelta) -> list[A2UIFrame]:
-    parent_id = delta.parent_id
-    parent = self._ensure_container(parent_id)
-    button_id = self._register_id(delta.id)
-    if button_id == parent.component_id:
-      raise ValueError(f'Button id {button_id} cannot equal parent id {parent.component_id}')
-    text_id = self._helper_id(button_id, 'label')
-    self._append_child(parent_id, button_id)
-    parent_update = self._container_component(parent)
-    button = ComponentNode(
-        id=button_id,
-        component={
-            'Button': {
-                'child': text_id,
-                'primary': delta.primary,
-                'action': {'name': delta.action_name},
-            }
-        },
-    )
-    label = ComponentNode(id=text_id, component={'Text': {'text': {'path': f'/content/{button_id}/label'}, 'usageHint': 'body'}})
-    return [
-        self._surface_update([parent_update, button, label]),
-        self._data_update(f'/content/{button_id}', [DataMapEntry(key='label', valueString=delta.label)]),
     ]
 
   def _add_spec_component(

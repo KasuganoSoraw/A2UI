@@ -115,14 +115,6 @@ def test_stream_frames_filters_actions_when_source_data_has_no_explicit_actions(
       },
       {'event': 'add_region', 'id': 'summary_region', 'role': 'summary', 'title': '指标'},
       {'event': 'add_region', 'id': 'actions_region', 'role': 'actions', 'title': '建议动作'},
-      {
-          'event': 'add_region_action',
-          'id': 'restart_action',
-          'region_id': 'actions_region',
-          'label': '重启服务',
-          'action_name': 'restart_service',
-          'primary': True,
-      },
       {'event': 'finalize_plan'},
   ]
   chunks = ['\n'.join(json.dumps(line, ensure_ascii=False) for line in planning_lines) + '\n']
@@ -147,4 +139,3 @@ def test_stream_frames_filters_actions_when_source_data_has_no_explicit_actions(
       for component in frame.surfaceUpdate.components
   }
   assert 'actions_region' not in component_ids
-  assert 'restart_action' not in component_ids

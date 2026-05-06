@@ -59,15 +59,6 @@ class AddRegionImageDelta(BaseModel):
   usage_hint: Literal["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"] | None = None
 
 
-class AddRegionActionDelta(BaseModel):
-  event: Literal["add_region_action"]
-  id: str
-  region_id: str
-  label: str
-  action_name: str
-  primary: bool = False
-
-
 class AddRegionDividerDelta(BaseModel):
   event: Literal["add_region_divider"]
   id: str
@@ -202,15 +193,6 @@ class AddImageDelta(BaseModel):
   usage_hint: Literal["icon", "avatar", "smallFeature", "mediumFeature", "largeFeature", "header"] | None = None
 
 
-class AddButtonDelta(BaseModel):
-  event: Literal["add_button"]
-  id: str
-  parent_id: str
-  label: str
-  action_name: str
-  primary: bool = False
-
-
 class AddTableDelta(BaseModel):
   event: Literal["add_table"]
   id: str
@@ -278,7 +260,6 @@ SkeletonDelta = Annotated[
     | AddRegionTextDelta
     | AddRegionFactDelta
     | AddRegionImageDelta
-    | AddRegionActionDelta
     | AddRegionDividerDelta
     | AddRegionListItemDelta
     | AddRegionTableDelta
@@ -299,7 +280,6 @@ Delta = Annotated[
     | AddTextDelta
     | AddKeyValueDelta
     | AddImageDelta
-    | AddButtonDelta
     | AddTableDelta
     | UpdateTableSpecDelta
     | AddLineChartDelta

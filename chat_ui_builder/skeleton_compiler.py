@@ -8,11 +8,9 @@ from typing import Callable
 from compiler import FrameCompiler
 from models import (
     A2UIFrame,
-    AddButtonDelta,
     AddDividerDelta,
     AddImageDelta,
     AddKeyValueDelta,
-    AddRegionActionDelta,
     AddRegionDelta,
     AddRegionDividerDelta,
     AddRegionFactDelta,
@@ -343,21 +341,6 @@ class ContentHandler:
 
     return self.router.apply_to_region(delta.region_id, 'image', build)
 
-  def handle_action(self, delta: AddRegionActionDelta) -> list[A2UIFrame]:
-    slot_name = 'action_primary' if delta.primary else 'action_secondary'
-
-    def build(parent_id: str) -> object:
-      return AddButtonDelta(
-          event='add_button',
-          id=delta.id,
-          parent_id=parent_id,
-          label=delta.label,
-          action_name=delta.action_name,
-          primary=delta.primary,
-      )
-
-    return self.router.apply_to_region(delta.region_id, slot_name, build)
-
   def handle_divider(self, delta: AddRegionDividerDelta) -> list[A2UIFrame]:
     def build(parent_id: str) -> object:
       return AddDividerDelta(
@@ -403,7 +386,6 @@ class SkeletonCompiler:
         AddRegionTopologyDelta: lambda delta: self.content_handler.handle_topology(delta),
         AddRegionFactDelta: lambda delta: self.content_handler.handle_fact(delta),
         AddRegionImageDelta: lambda delta: self.content_handler.handle_image(delta),
-        AddRegionActionDelta: lambda delta: self.content_handler.handle_action(delta),
         AddRegionDividerDelta: lambda delta: self.content_handler.handle_divider(delta),
         AddRegionListItemDelta: lambda delta: self.content_handler.handle_list_item(delta),
     }

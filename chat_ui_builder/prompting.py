@@ -39,14 +39,6 @@ PLANNING_DELTA_CONTRACT = [
         'value': 'string',
     },
     {
-        'event': 'add_region_action',
-        'id': 'string',
-        'region_id': 'string',
-        'label': 'string',
-        'action_name': 'string',
-        'primary': 'boolean, optional',
-    },
-    {
         'event': 'add_region_list_item',
         'id': 'string',
         'region_id': 'string',
@@ -127,7 +119,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是展
 - 所有内容必须直接来源于 `source_data`
 - `user_query` 仅用于决定标题、摘要、排序和展示重点
 - 不得引入任何新事实、新结论、新建议、新动作或排障步骤
-- 若输入中没有显式 actions / recommendations / next_steps / available_actions，不得生成 `actions` region 或 `add_region_action`
+- 当前仅负责展示，不生成可点击操作、按钮或交互动作
 
 ## 输出协议
 {json.dumps(PLANNING_DELTA_CONTRACT, indent=2, ensure_ascii=False)}
@@ -190,8 +182,8 @@ Mermaid 使用限制：
 
 Topology 使用限制：
 1. 拓扑图、对象关联图、因果传播图、知识网络图必须使用 `add_region_topology`。
-2. `objects` 仅允许输出 `{id, standardName, viewGroup}`。
-3. `edges` 仅允许输出 `{bizSemanticRel, srcVid, dstVid, function:{description}}`。
+2. `objects` 仅允许输出 `{{id, standardName, viewGroup}}`。
+3. `edges` 仅允许输出 `{{bizSemanticRel, srcVid, dstVid, function:{{description}}}}`。
 4. `bizSemanticRel` 只允许 `relatedto` 或 `affect`。
 5. `function` 只允许 `description` 一个字段。
 6. `srcVid` / `dstVid` 必须引用已在 `objects.id` 中出现的节点。

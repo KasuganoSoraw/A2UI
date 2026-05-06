@@ -4,7 +4,6 @@ import json
 import pytest
 
 from models import (
-    AddRegionActionDelta,
     AddRegionDelta,
     AddRegionFactDelta,
     AddRegionLineChartDelta,
@@ -107,16 +106,6 @@ def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   compiler.apply(InitPlanDelta(event='init_plan', title='Detail page'))
 
   compiler.apply(
-      AddRegionActionDelta(
-          event='add_region_action',
-          id='details_cta',
-          region_id='details_region',
-          label='Review',
-          action_name='review',
-          primary=True,
-      )
-  )
-  compiler.apply(
       AddRegionFactDelta(
           event='add_region_fact',
           id='details_fact',
@@ -133,7 +122,6 @@ def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   assert 'details_region_body' in component_ids
   assert 'details_region_fact_row' in component_ids
   assert 'details_region_action_row' in component_ids
-  assert 'details_cta' in component_ids
   assert 'details_fact' in component_ids
 
 
