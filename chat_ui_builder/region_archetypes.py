@@ -11,7 +11,6 @@ EmitLowLevel = Callable[[object], list[A2UIFrame]]
 @dataclass(frozen=True)
 class ArrangementSemantics:
   body_layout: Literal['column', 'row', 'none'] = 'column'
-  actions_layout: Literal['row', 'column'] = 'row'
   facts_layout: Literal['row', 'column'] = 'row'
 
 
@@ -147,8 +146,6 @@ class RegionArchetypeBuilder:
         'image': content_parent,
         'divider': content_parent,
         'fact': region_id,
-        'action_primary': region_id,
-        'action_secondary': region_id,
         'list_item': content_parent,
         'flow': content_parent,
     }
@@ -168,7 +165,6 @@ class HeroArchetypeBuilder(RegionArchetypeBuilder):
     frames.extend(header_body_frames)
 
     facts_id = f'{region_id}_facts'
-    actions_id = f'{region_id}_actions'
     frames.extend(
         self._create_section(
             emit,
@@ -179,20 +175,8 @@ class HeroArchetypeBuilder(RegionArchetypeBuilder):
             appearance='hero_fact',
         )
     )
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=actions_id,
-            parent_id=region_id,
-            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-            order=40,
-        )
-    )
-
     slot_parents = self._default_slot_parents(region_id, content_parent)
     slot_parents['fact'] = facts_id
-    slot_parents['action_primary'] = actions_id
-    slot_parents['action_secondary'] = actions_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
@@ -230,7 +214,6 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
     frames.extend(header_body_frames)
 
     facts_id = f'{region_id}_facts'
-    actions_id = f'{region_id}_actions'
     frames.extend(
         self._create_section(
             emit,
@@ -241,69 +224,8 @@ class DetailsArchetypeBuilder(RegionArchetypeBuilder):
             appearance='detail_fact',
         )
     )
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=actions_id,
-            parent_id=region_id,
-            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-            order=40,
-        )
-    )
-
     slot_parents = self._default_slot_parents(region_id, content_parent)
     slot_parents['fact'] = facts_id
-    slot_parents['action_primary'] = actions_id
-    slot_parents['action_secondary'] = actions_id
-    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
-
-
-class ActionsArchetypeBuilder(RegionArchetypeBuilder):
-  archetype_name = 'action_panel'
-
-  def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
-    region_id = context.delta.id
-    frames = self._create_region_root(context, emit)
-    actions_layout = 'Row' if context.arrangement.actions_layout == 'row' else 'Column'
-
-    slot_parents = self._default_slot_parents(region_id, region_id)
-    if context.arrangement.actions_layout == 'row':
-      actions_id = f'{region_id}_actions'
-      frames.extend(
-          self._create_section(
-              emit,
-              section_id=actions_id,
-              parent_id=region_id,
-              layout=actions_layout,
-              order=30,
-          )
-      )
-      slot_parents['action_primary'] = actions_id
-      slot_parents['action_secondary'] = actions_id
-      return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
-
-    primary_id = f'{region_id}_actions_primary'
-    secondary_id = f'{region_id}_actions_secondary'
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=primary_id,
-            parent_id=region_id,
-            layout=actions_layout,
-            order=30,
-        )
-    )
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=secondary_id,
-            parent_id=region_id,
-            layout=actions_layout,
-            order=40,
-        )
-    )
-    slot_parents['action_primary'] = primary_id
-    slot_parents['action_secondary'] = secondary_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
@@ -317,22 +239,9 @@ class WorkflowArchetypeBuilder(RegionArchetypeBuilder):
     frames.extend(header_body_frames)
 
     flow_id = f'{region_id}_flow'
-    actions_id = f'{region_id}_actions'
     frames.extend(self._create_section(emit, section_id=flow_id, parent_id=region_id, layout='Column', order=30))
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=actions_id,
-            parent_id=region_id,
-            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-            order=40,
-        )
-    )
-
     slot_parents = self._default_slot_parents(region_id, content_parent)
     slot_parents['flow'] = flow_id
-    slot_parents['action_primary'] = actions_id
-    slot_parents['action_secondary'] = actions_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
@@ -372,7 +281,6 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
     frames.extend(header_body_frames)
 
     list_items_id = f'{region_id}_list_items'
-    actions_id = f'{region_id}_actions'
     list_layout = 'Timeline' if context.presentation_variant == 'timeline' else 'List'
     frames.extend(
         self._create_section(
@@ -383,46 +291,8 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
             order=30,
         )
     )
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=actions_id,
-            parent_id=region_id,
-            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-            order=40,
-        )
-    )
-
     slot_parents = self._default_slot_parents(region_id, content_parent)
     slot_parents['list_item'] = list_items_id
-    slot_parents['action_primary'] = actions_id
-    slot_parents['action_secondary'] = actions_id
-    return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
-
-
-class FormArchetypeBuilder(RegionArchetypeBuilder):
-  archetype_name = 'form_panel'
-
-  def build(self, context: RegionBuildContext, emit: EmitLowLevel) -> RegionBuildResult:
-    region_id = context.delta.id
-    frames = self._create_region_root(context, emit)
-    header_body_frames, content_parent = self._create_header_and_body(context, emit, include_body_slot=True)
-    frames.extend(header_body_frames)
-
-    actions_id = f'{region_id}_actions'
-    frames.extend(
-        self._create_section(
-            emit,
-            section_id=actions_id,
-            parent_id=region_id,
-            layout='Row' if context.arrangement.actions_layout == 'row' else 'Column',
-            order=40,
-        )
-    )
-
-    slot_parents = self._default_slot_parents(region_id, content_parent)
-    slot_parents['action_primary'] = actions_id
-    slot_parents['action_secondary'] = actions_id
     return RegionBuildResult(archetype=self.archetype_name, frames=frames, slot_parents=slot_parents)
 
 
@@ -435,8 +305,6 @@ class RegionArchetypeRegistry:
         'summary': summary,
         'details': details,
         'workflow': WorkflowArchetypeBuilder(),
-        'actions': ActionsArchetypeBuilder(),
-        'form': FormArchetypeBuilder(),
         'list': ListArchetypeBuilder(),
         'insights': summary,
         'supporting': SupportingArchetypeBuilder(),

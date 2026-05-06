@@ -8,7 +8,7 @@ from typing import Any
 from litellm import acompletion
 
 from compiler import FrameCompiler
-from models import A2UIFrame, AddRegionDelta, AddTextDelta, InitSurfaceDelta
+from models import A2UIFrame, AddTextDelta, InitSurfaceDelta
 from planning_stream import PlanningDeltaRecord, PlanningDeltaStreamParser
 from prompting import build_messages
 from skeleton_compiler import SkeletonCompiler
@@ -77,7 +77,6 @@ class ChatUIService:
     parser = PlanningDeltaStreamParser()
     skeleton_compiler = SkeletonCompiler()
     rejected_lines: list[str] = []
-    allow_actions = self._has_explicit_actions(source_data)
     logger.info(
         '[%s] Starting LLM stream. endpoint=%s model=%s temperature=%s',
         request_id,
@@ -87,7 +86,6 @@ class ChatUIService:
     )
     logger.info('[%s] User query=%s', request_id, _truncate(user_query or user_message or ''))
     logger.info('[%s] Source data=%s', request_id, _truncate(source_data))
-    logger.info('[%s] allow_actions=%s', request_id, allow_actions)
     logger.info('[%s] LLM messages=%s', request_id, _truncate(messages))
 
     completion_kwargs: dict[str, Any] = {
@@ -114,12 +112,12 @@ class ChatUIService:
         continue
       parsed_records, rejected = parser.feed(content)
       rejected_lines.extend(rejected)
-      for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id, allow_actions):
+      for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id):
         yield frame
 
     parsed_records, trailing_rejected = parser.finish()
     rejected_lines.extend(trailing_rejected)
-    for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id, allow_actions):
+    for frame in self._compile_planning_records(parsed_records, skeleton_compiler, request_id):
       yield frame
 
     raw_output = parser.raw_output
@@ -144,45 +142,12 @@ class ChatUIService:
       records: Iterable[PlanningDeltaRecord],
       skeleton_compiler: SkeletonCompiler,
       request_id: str,
-      allow_actions: bool,
   ) -> list[A2UIFrame]:
     frames: list[A2UIFrame] = []
     for record in records:
-      if not allow_actions and self._is_action_event(record.delta):
-        logger.warning(
-            '[%s] Skipping action event because source_data has no explicit actions. event=%s',
-            request_id,
-            type(record.delta).__name__,
-        )
-        continue
       compiled = skeleton_compiler.apply(record.delta)
       frames.extend(compiled)
     return frames
-
-  def _is_action_event(self, delta: object) -> bool:
-    if isinstance(delta, AddRegionDelta) and delta.role == 'actions':
-      return True
-    return False
-
-  def _has_explicit_actions(self, source_data: Any) -> bool:
-    if source_data is None:
-      return False
-    if isinstance(source_data, dict):
-      normalized_keys = {str(key).lower() for key in source_data.keys()}
-      action_markers = {
-          'actions',
-          'available_actions',
-          'recommended_actions',
-          'recommendations',
-          'next_steps',
-          'next_actions',
-      }
-      if normalized_keys.intersection(action_markers):
-        return True
-      return any(self._has_explicit_actions(value) for value in source_data.values())
-    if isinstance(source_data, list):
-      return any(self._has_explicit_actions(item) for item in source_data)
-    return False
 
   def _error_frames(self) -> list[A2UIFrame]:
     compiler = FrameCompiler()

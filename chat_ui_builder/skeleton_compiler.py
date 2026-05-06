@@ -136,15 +136,13 @@ class RegionHandler:
 
   def _arrangement_for(self, delta: AddRegionDelta) -> ArrangementSemantics:
     role_defaults: dict[str, ArrangementSemantics] = {
-        'hero': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
-        'summary': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
-        'insights': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
-        'details': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
-        'workflow': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
-        'form': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
-        'actions': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
-        'supporting': ArrangementSemantics(body_layout='column', facts_layout='row', actions_layout='row'),
-        'list': ArrangementSemantics(body_layout='none', facts_layout='row', actions_layout='row'),
+        'hero': ArrangementSemantics(body_layout='column', facts_layout='row'),
+        'summary': ArrangementSemantics(body_layout='none', facts_layout='row'),
+        'insights': ArrangementSemantics(body_layout='none', facts_layout='row'),
+        'details': ArrangementSemantics(body_layout='column', facts_layout='row'),
+        'workflow': ArrangementSemantics(body_layout='column', facts_layout='row'),
+        'supporting': ArrangementSemantics(body_layout='column', facts_layout='row'),
+        'list': ArrangementSemantics(body_layout='none', facts_layout='row'),
     }
     return role_defaults.get(delta.role, ArrangementSemantics())
 

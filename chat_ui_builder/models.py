@@ -19,8 +19,8 @@ class InitPlanDelta(BaseModel):
   surface_id: str = "main"
   title: str
   summary: str | None = None
-  page_kind: Literal["overview", "dashboard", "approval_workflow", "form", "detail", "workflow"] = "overview"
-  emphasis: Literal["balanced", "action-first", "analytics-first", "content-first"] = "balanced"
+  page_kind: Literal["overview", "dashboard", "detail", "workflow"] = "overview"
+  emphasis: Literal["balanced", "analytics-first", "content-first"] = "balanced"
   layout_hint: Literal["auto", "single_column", "two_column", "hero_plus_two_column", "hero_plus_action_panel"] = "auto"
   theme: Theme | None = None
 
@@ -28,7 +28,7 @@ class InitPlanDelta(BaseModel):
 class AddRegionDelta(BaseModel):
   event: Literal["add_region"]
   id: str
-  role: Literal["hero", "summary", "details", "workflow", "actions", "form", "list", "insights", "supporting"]
+  role: Literal["hero", "summary", "details", "workflow", "list", "insights", "supporting"]
   title: str | None = None
   description: str | None = None
   importance: Literal["high", "medium", "low"] = "medium"

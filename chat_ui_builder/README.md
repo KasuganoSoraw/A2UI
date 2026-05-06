@@ -81,7 +81,7 @@ uv run .
 - 前端按帧渐进式渲染
 
 当前 demo 不再包含 IntentPlan fallback 或 legacy line-by-line fallback。
-并且默认启用“展示层约束”：若输入未明确提供 actions/recommendations/next_steps，不会渲染 actions 区域。
+并且默认启用纯展示约束：不生成按钮、表单、可点击操作或交互动作。
 
 ## 前端 demo
 

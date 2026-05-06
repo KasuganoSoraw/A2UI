@@ -8,15 +8,15 @@ PLANNING_DELTA_CONTRACT = [
         'surface_id': 'string, optional, default main',
         'title': 'string',
         'summary': 'optional string',
-        'page_kind': 'overview | dashboard | approval_workflow | form | detail | workflow',
-        'emphasis': 'balanced | action-first | analytics-first | content-first',
+        'page_kind': 'overview | dashboard | detail | workflow',
+        'emphasis': 'balanced | analytics-first | content-first',
         'layout_hint': 'auto | single_column',
         'theme': {'primaryColor': 'optional #RRGGBB string', 'font': 'optional string'},
     },
     {
         'event': 'add_region',
         'id': 'string',
-        'role': 'hero | summary | details | workflow | actions | form | list | insights | supporting',
+        'role': 'hero | summary | details | workflow | list | insights | supporting',
         'title': 'optional string',
         'description': 'optional string',
         'importance': 'high | medium | low',
@@ -119,7 +119,7 @@ SYSTEM_PROMPT = f"""你是一个 A2UI 页面规划事件生成器，定位是展
 - 所有内容必须直接来源于 `source_data`
 - `user_query` 仅用于决定标题、摘要、排序和展示重点
 - 不得引入任何新事实、新结论、新建议、新动作或排障步骤
-- 当前仅负责展示，不生成可点击操作、按钮或交互动作
+- 当前仅负责右侧详情面板的展示编排，不生成按钮、表单、可点击操作或交互动作
 
 ## 输出协议
 {json.dumps(PLANNING_DELTA_CONTRACT, indent=2, ensure_ascii=False)}

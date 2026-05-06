@@ -48,8 +48,8 @@ def test_stream_frames_uses_planning_delta_path(monkeypatch) -> None:
           'surface_id': 'main',
           'title': '审批中心',
           'summary': '待办审批概览',
-          'page_kind': 'approval_workflow',
-          'emphasis': 'action-first',
+          'page_kind': 'detail',
+          'emphasis': 'content-first',
       },
       {'event': 'add_region', 'id': 'hero_region', 'role': 'hero', 'title': '重点提醒'},
       {
@@ -104,38 +104,3 @@ def test_stream_frames_emits_error_without_planning_delta(monkeypatch) -> None:
       for frame in frames
   )
 
-
-def test_stream_frames_filters_actions_when_source_data_has_no_explicit_actions(monkeypatch) -> None:
-  planning_lines = [
-      {
-          'event': 'init_plan',
-          'surface_id': 'main',
-          'title': '监控概览',
-          'summary': '系统指标与日志',
-      },
-      {'event': 'add_region', 'id': 'summary_region', 'role': 'summary', 'title': '指标'},
-      {'event': 'add_region', 'id': 'actions_region', 'role': 'actions', 'title': '建议动作'},
-      {'event': 'finalize_plan'},
-  ]
-  chunks = ['\n'.join(json.dumps(line, ensure_ascii=False) for line in planning_lines) + '\n']
-
-  async def fake_acompletion(**_: object) -> FakeResponse:
-    return FakeResponse(chunks)
-
-  monkeypatch.setattr(service_module, 'acompletion', fake_acompletion)
-
-  frames = asyncio.run(
-      _collect_frames(
-          ChatUIService(),
-          message=None,
-          source_data={'metrics': {'error_rate': '1.2%'}, 'logs': ['timeout']},
-          user_query='展示系统状态',
-      )
-  )
-  component_ids = {
-      component.id
-      for frame in frames
-      if frame.surfaceUpdate
-      for component in frame.surfaceUpdate.components
-  }
-  assert 'actions_region' not in component_ids

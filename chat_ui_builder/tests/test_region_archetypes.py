@@ -53,54 +53,6 @@ def test_summary_region_uses_compact_fact_strip_slots() -> None:
   assert 'summary_region_fact_grid' in component_ids
 
 
-def test_actions_region_stays_in_single_column_bucket() -> None:
-  compiler = SkeletonCompiler()
-  init_frames = compiler.apply(
-      InitPlanDelta(
-          event='init_plan',
-          title='Approval',
-          page_kind='detail',
-          emphasis='action-first',
-          layout_hint='two_column',
-      )
-  )
-  init_component_ids = _slot_component_ids(init_frames)
-  frames = compiler.apply(AddRegionDelta(event='add_region', id='actions_region', role='actions', title='Actions'))
-  binding = compiler.regions['actions_region']
-  component_ids = _slot_component_ids(frames)
-
-  assert 'layout_split_row' not in init_component_ids
-  assert 'layout_main_lane' not in init_component_ids
-  assert 'layout_side_lane' not in init_component_ids
-  assert 'layout_side_rail' not in init_component_ids
-  assert binding.parent_for('action_primary') == 'actions_region_action_row'
-  assert binding.parent_for('action_secondary') == 'actions_region_action_row'
-  assert 'actions_region_action_row' in component_ids
-
-
-def test_form_action_first_keeps_actions_in_main_column_bucket() -> None:
-  compiler = SkeletonCompiler()
-  init_frames = compiler.apply(
-      InitPlanDelta(
-          event='init_plan',
-          title='Form',
-          page_kind='form',
-          emphasis='action-first',
-          layout_hint='hero_plus_action_panel',
-      )
-  )
-  init_component_ids = _slot_component_ids(init_frames)
-
-  assert 'actions_footer_bucket' not in init_component_ids
-
-  frames = compiler.apply(AddRegionDelta(event='add_region', id='actions_form', role='actions', title='Submit'))
-  binding = compiler.regions['actions_form']
-  component_ids = _slot_component_ids(frames)
-  assert binding.parent_for('action_primary') == 'actions_form_action_row'
-  assert binding.parent_for('action_secondary') == 'actions_form_action_row'
-  assert 'actions_form_action_row' in component_ids
-
-
 def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Detail page'))
@@ -121,7 +73,6 @@ def test_pending_region_deltas_flush_through_semantic_slot_mapping() -> None:
   assert 'details_region_header' in component_ids
   assert 'details_region_body' in component_ids
   assert 'details_region_fact_row' in component_ids
-  assert 'details_region_action_row' in component_ids
   assert 'details_fact' in component_ids
 
 
