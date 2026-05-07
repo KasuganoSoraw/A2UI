@@ -25,10 +25,9 @@ class InitPlanDelta(BaseModel):
 class AddRegionDelta(BaseModel):
   event: Literal["add_region"]
   id: str
-  role: Literal["hero", "summary", "details", "workflow", "list", "insights", "supporting"]
+  role: Literal["hero", "summary", "details", "workflow", "list", "supporting"]
   title: str | None = None
   description: str | None = None
-  importance: Literal["high", "medium", "low"] = "medium"
   presentation: RegionPresentationConfig | None = None
 
 

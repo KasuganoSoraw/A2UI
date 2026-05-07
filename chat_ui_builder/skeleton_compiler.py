@@ -50,7 +50,6 @@ class RegionBinding:
   role: str
   section_id: str
   archetype: str
-  importance: str
   slot_parents: dict[str, str] = field(default_factory=dict)
 
   def parent_for(self, slot_name: str) -> str:
@@ -121,7 +120,6 @@ class RegionHandler:
         role=delta.role,
         section_id=delta.id,
         archetype=result.archetype,
-        importance=delta.importance,
         slot_parents=result.slot_parents,
     )
     frames = list(result.frames)
@@ -132,7 +130,6 @@ class RegionHandler:
     role_defaults: dict[str, ArrangementSemantics] = {
         'hero': ArrangementSemantics(body_layout='column', facts_layout='row'),
         'summary': ArrangementSemantics(body_layout='none', facts_layout='row'),
-        'insights': ArrangementSemantics(body_layout='none', facts_layout='row'),
         'details': ArrangementSemantics(body_layout='column', facts_layout='row'),
         'workflow': ArrangementSemantics(body_layout='column', facts_layout='row'),
         'supporting': ArrangementSemantics(body_layout='column', facts_layout='row'),

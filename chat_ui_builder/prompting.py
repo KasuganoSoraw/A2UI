@@ -13,10 +13,9 @@ PLANNING_DELTA_CONTRACT = [
     {
         'event': 'add_region',
         'id': 'string',
-        'role': 'hero | summary | details | workflow | list | insights | supporting',
+        'role': 'hero | summary | details | workflow | list | supporting',
         'title': 'optional string',
         'description': 'optional string',
-        'importance': 'high | medium | low',
         'presentation': {
             'variant': 'optional standard | timeline (only list role supports timeline in current stage)'
         },

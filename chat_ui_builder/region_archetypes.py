@@ -296,14 +296,12 @@ class ListArchetypeBuilder(RegionArchetypeBuilder):
 class RegionArchetypeRegistry:
   def __init__(self) -> None:
     details = DetailsArchetypeBuilder()
-    summary = SummaryArchetypeBuilder()
     self._builders: dict[str, RegionArchetypeBuilder] = {
         'hero': HeroArchetypeBuilder(),
-        'summary': summary,
+        'summary': SummaryArchetypeBuilder(),
         'details': details,
         'workflow': WorkflowArchetypeBuilder(),
         'list': ListArchetypeBuilder(),
-        'insights': summary,
         'supporting': SupportingArchetypeBuilder(),
     }
     self._default_builder = details

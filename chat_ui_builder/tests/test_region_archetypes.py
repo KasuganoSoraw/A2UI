@@ -593,7 +593,7 @@ def test_add_region_pie_chart_schema_can_be_parsed() -> None:
       {
           'event': 'add_region_pie_chart',
           'id': 'traffic_share',
-          'region_id': 'insights_region',
+          'region_id': 'summary_chart_region',
           'title': '渠道占比',
           'width': '100%',
           'settings': {'legend': 'bottom'},
@@ -616,13 +616,13 @@ def test_add_region_pie_chart_schema_can_be_parsed() -> None:
 def test_add_region_pie_chart_routes_and_emits_pie_chart_component() -> None:
   compiler = SkeletonCompiler()
   compiler.apply(InitPlanDelta(event='init_plan', title='Pie chart page'))
-  compiler.apply(AddRegionDelta(event='add_region', id='insights_region', role='insights', title='占比洞察'))
+  compiler.apply(AddRegionDelta(event='add_region', id='summary_chart_region', role='summary', title='占比摘要'))
 
   frames = compiler.apply(
       AddRegionPieChartDelta(
           event='add_region_pie_chart',
           id='traffic_share',
-          region_id='insights_region',
+          region_id='summary_chart_region',
           title='流量来源占比',
           width='100%',
           settings={'legend': 'bottom'},
