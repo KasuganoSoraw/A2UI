@@ -82,11 +82,3 @@ uv run .
 
 当前 demo 不再包含 IntentPlan fallback 或 legacy line-by-line fallback。
 并且默认启用纯展示约束：不生成按钮、表单、可点击操作或交互动作。
-
-## 前端 demo
-
-对应的 React 前端位于：
-
-```bash
-samples/client/react/chat_ui_builder
-```
